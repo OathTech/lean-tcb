@@ -63,7 +63,7 @@ partial def computeTcb (env : Environment)
         match env.find? ctorName with
         | some ctorCi =>
           let ctorRefs := collectConstants #[ctorCi.type]
-          for r in ctorRefs.toList do
+          for r in ctorRefs do
             unless visited.contains r do
               queue := queue.push r
           specSet := specSet.insert ctorName
@@ -72,7 +72,7 @@ partial def computeTcb (env : Environment)
           missingNames := missingNames.insert ctorName
     | _ => pure ()
 
-    for r in refs.toList do
+    for r in refs do
       unless visited.contains r do
         queue := queue.push r
 
@@ -156,7 +156,7 @@ partial def computeTcbGraph (env : Environment)
             parentMap := parentMap.insert ctorName
               (name, .inductCtor)
           let ctorRefs := collectConstants #[ctorCi.type]
-          for r in ctorRefs.toList do
+          for r in ctorRefs do
             depsMap := appendDep depsMap ctorName r
               .exprRef
             unless visited.contains r do
@@ -171,7 +171,7 @@ partial def computeTcbGraph (env : Environment)
           missingNames := missingNames.insert ctorName
     | _ => pure ()
 
-    for r in refs.toList do
+    for r in refs do
       depsMap := appendDep depsMap name r .exprRef
       unless visited.contains r do
         unless parentMap.contains r ||

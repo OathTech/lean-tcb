@@ -42,7 +42,14 @@ def trustRelevantExprs (ci : ConstantInfo) : Array Expr :=
 /-- Recursively collect `Expr.proj` type names from an expression.
     `Expr.proj typeName idx struct` stores the structure name as a
     plain `Name` field — `foldConsts` misses it because it only
-    visits `Expr.const` nodes. -/
+    visits `Expr.const` nodes.
+
+    Unlike `foldConsts` (which uses pointer-based dedup internally),
+    this traversal may revisit shared sub-expressions. The impact
+    is negligible in practice: `Expr.proj` nodes are rare and the
+    traversal only collects `Name`s, not full sub-trees.
+    A pointer-based cache could be added if this becomes a
+    bottleneck on large developments. -/
 private partial def collectProjTypeNames
     (acc : Lean.NameSet) : Expr → Lean.NameSet
   | .proj typeName _ e =>

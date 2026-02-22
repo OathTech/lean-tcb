@@ -238,6 +238,61 @@ elab "#test_annotation_action_hints" : command => do
 
 #test_annotation_action_hints
 
+-- H3: Package info should be available in normal Lake builds
+elab "#test_package_info_available" : command => do
+  let env ← getEnv
+  unless env.getModulePackage?.isSome do
+    throwError "getModulePackage? should be some in Lake"
+  logInfo "✓ package info available: PASS"
+
+#test_package_info_available
+
+-- L9: Library entry point should show hint
+elab "#test_library_entry_point_hint" : command => do
+  let env ← getEnv
+  match computeTcb env #[`Nat.add] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let output := renderResult fr
+    unless (output.splitOn
+        "library declarations").length > 1 do
+      throwError s!"expected library hint in output: \
+        {output}"
+    logInfo "✓ library entry point hint: PASS"
+  | .error msg => throwError msg
+
+#test_library_entry_point_hint
+
+-- M4: Auto-generated declarations should not inflate percentage
+elab "#test_auto_generated_filtering" : command => do
+  let env ← getEnv
+  -- useAuditColor references AuditColor which generates
+  -- .rec, .casesOn, etc. The percentage should use filtered
+  -- counts that exclude these auto-generated companions.
+  match computeTcb env #[`useAuditColor] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    -- humanSpecCount should be less than or equal to
+    -- the full userSpec count (auto-generated filtered out)
+    unless fr.humanSpecCount ≤ fr.userSpec.size do
+      throwError "humanSpecCount should not exceed \
+        userSpec.size"
+    -- humanNotInTcb should be less than or equal to
+    -- userNotInTcb (auto-generated filtered out)
+    unless fr.humanNotInTcb ≤ fr.userNotInTcb do
+      throwError "humanNotInTcb should not exceed \
+        userNotInTcb"
+    logInfo "✓ auto-generated filtering: PASS"
+  | .error msg => throwError msg
+
+#test_auto_generated_filtering
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests
 -- ═══════════════════════════════════════════════

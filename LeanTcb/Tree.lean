@@ -40,7 +40,7 @@ private def findChildren
 private def sortDepsMap (graph : TcbGraphResult)
     : Lean.NameMap (Array (Name × DepReason)) := Id.run do
   let mut sorted : Lean.NameMap (Array (Name × DepReason)) := {}
-  for (parent, arr) in graph.depsMap.toList do
+  for (parent, arr) in graph.depsMap do
     let mut reasonMap : Lean.NameMap DepReason := {}
     let mut order : Array Name := #[]
     for (child, reason) in arr do
@@ -159,9 +159,11 @@ def renderTree (env : Environment) (graph : TcbGraphResult)
   allLines := allLines.push "═══ TCB Dependency Tree ═══"
   allLines := allLines.push ""
 
+  let mut seen : Lean.NameSet := {}
   for ep in graph.entryPoints do
-    let (lines, _) := renderNode env childrenMap opts
-      ep none "" true true {}
+    let (lines, newSeen) := renderNode env childrenMap opts
+      ep none "" true true seen
+    seen := newSeen
     for l in lines do
       allLines := allLines.push l
     allLines := allLines.push ""
