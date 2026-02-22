@@ -166,9 +166,9 @@ elab "#test_custom_axiom_in_tcb" : command => do
           n == `customAxiom && kind == .nonStandard) do
       throwError "customAxiom should be non-standard"
     let rendered := renderResult fr
-    unless (rendered.splitOn "NON-STANDARD").length
+    unless (rendered.splitOn "non-standard").length
         > 1 do
-      throwError s!"expected NON-STANDARD in output: \
+      throwError s!"expected non-standard in output: \
         {rendered}"
     logInfo "✓ custom axiom in TCB (non-standard) — PASS"
   | .error msg => throwError msg

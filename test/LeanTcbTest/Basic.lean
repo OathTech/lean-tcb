@@ -168,3 +168,69 @@ elab "#test_package_info_available" : command => do
   logInfo "✓ package info available: PASS"
 
 #test_package_info_available
+
+-- Verbose output includes full library dependency listing
+elab "#test_verbose_library_listing" : command => do
+  let env ← getEnv
+  match computeTcb env #[`myDouble_pos] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    -- Verbose should include "Library Dependencies" section
+    let verbose := renderResult fr true
+    unless (verbose.splitOn "Library Dependencies").length
+        > 1 do
+      throwError "verbose output should include Library \
+        Dependencies section"
+    -- Non-verbose should NOT include it
+    let brief := renderResult fr false
+    if (brief.splitOn "Library Dependencies").length
+        > 1 then
+      throwError "non-verbose output should not include \
+        Library Dependencies section"
+    logInfo "✓ verbose library listing: PASS"
+  | .error msg => throwError msg
+
+#test_verbose_library_listing
+
+-- Graph parentMap/specSet consistency invariants
+elab "#test_graph_invariants" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`myDouble_pos] with
+  | .ok graph =>
+    let entrySet := graph.entryPoints.foldl
+      (fun acc n => acc.insert n) ({} : Lean.NameSet)
+    -- Every non-entry in specSet has a parentMap entry
+    for name in graph.specSet do
+      unless entrySet.contains name do
+        unless graph.parentMap.contains name do
+          throwError s!"{name} in specSet but not in \
+            parentMap and not an entry point"
+    -- Every parentMap key is in specSet
+    for (name, _) in graph.parentMap do
+      unless graph.specSet.contains name do
+        throwError s!"{name} in parentMap but not in \
+          specSet"
+    logInfo "✓ graph invariants: PASS"
+  | .error msg => throwError msg
+
+#test_graph_invariants
+
+-- Graph depsMap is populated for non-leaf nodes
+elab "#test_graph_depsmap_populated" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`myDouble_pos] with
+  | .ok graph =>
+    -- At least some nodes should have depsMap entries
+    let mut hasDeps := false
+    for (_, arr) in graph.depsMap do
+      if arr.size > 0 then
+        hasDeps := true
+    unless hasDeps do
+      throwError "depsMap should have non-empty entries"
+    logInfo "✓ graph depsMap populated: PASS"
+  | .error msg => throwError msg
+
+#test_graph_depsmap_populated

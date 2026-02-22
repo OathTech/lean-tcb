@@ -196,7 +196,7 @@ set_option tcb.checkAnnotations true
 ```
 
 Enable `set_option tcb.checkAnnotations true` to have `#tcb` cross-check
-the computed TCB against your annotations. It warns about:
+the TCB against your annotations. It warns about:
 - Declarations in the TCB that you forgot to annotate
 - Stale `@[tcb]` annotations on declarations no longer in the TCB
 
@@ -218,6 +218,11 @@ Annotating an `inductive` or `def` covers auto-generated companions
 | `#tcb_tree name₁ ...` | Render dependency tree (library collapsed) |
 | `#tcb_tree! name₁ ...` | Render dependency tree (library expanded) |
 | `#tcb_why entry target` | Show why `target` is in the TCB of `entry` |
+
+All commands automatically warn about **soundness issues**
+(`sorry`, `native_decide`, `unsafe`) in project-local TCB
+members. Enable `set_option tcb.checkAnnotations true` to
+also cross-check `@[tcb]` annotations (see above).
 
 ## Limitations
 
