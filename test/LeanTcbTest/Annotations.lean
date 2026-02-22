@@ -56,7 +56,7 @@ elab "#test_ann_unannotated" : command => do
   match computeTcb env #[`annThm] with
   | .ok result =>
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     let userSpecNames := fr.userSpec.map (·.1)
     let ac := checkAnnotations env userSpecNames allUserDecls
@@ -79,7 +79,7 @@ elab "#test_ann_unnecessary" : command => do
   match computeTcb env #[`annThm] with
   | .ok result =>
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     let userSpecNames := fr.userSpec.map (·.1)
     let ac := checkAnnotations env userSpecNames allUserDecls
@@ -99,7 +99,7 @@ elab "#test_ann_inductive_coverage" : command => do
   match computeTcb env #[`annColorThm] with
   | .ok result =>
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     let userSpecNames := fr.userSpec.map (·.1)
     let ac := checkAnnotations env userSpecNames allUserDecls

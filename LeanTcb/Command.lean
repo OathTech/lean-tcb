@@ -38,7 +38,7 @@ def elabTcb : CommandElab := fun stx => do
   | .ok result =>
     let allUserDecls := env.constants.fold
       (init := (#[] : Array Name)) fun acc n _ =>
-        if isCurrentModule env n then acc.push n else acc
+        if isProjectLocal env n then acc.push n else acc
 
     let mut fr := formatResult env result allUserDecls
 
@@ -69,7 +69,7 @@ def elabTcb : CommandElab := fun stx => do
             provides weaker guarantees for this declaration"
           fr := { fr with
             warnings := fr.warnings.push w }
-          if isCurrentModule env name then
+          if isProjectLocal env name then
             logWarning m!"'{name}' is unsafe — the \
               kernel provides weaker guarantees"
         if ci.isPartial then
@@ -77,7 +77,7 @@ def elabTcb : CommandElab := fun stx => do
             terminate, which can affect soundness"
           fr := { fr with
             warnings := fr.warnings.push w }
-          if isCurrentModule env name then
+          if isProjectLocal env name then
             logWarning m!"'{name}' is partial — it may \
               not terminate"
 

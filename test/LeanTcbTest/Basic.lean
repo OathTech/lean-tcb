@@ -98,7 +98,7 @@ elab "#test_user_vs_library" : command => do
   match computeTcb env #[`myDouble_pos] with
   | .ok result =>
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     -- myDouble and myPred should be in userSpec (defined in this module)
     unless fr.userSpec.any (·.1 == `myDouble) do

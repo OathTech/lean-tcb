@@ -24,9 +24,18 @@ private def standardAxioms : Lean.NameSet :=
     |>.insert `Classical.choice
     |>.insert `Quot.sound
 
-/-- Whether a declaration was defined in the current module. -/
-def isCurrentModule (env : Environment) (n : Name) : Bool :=
-  env.getModuleIdxFor? n |>.isNone
+/-- Whether a declaration belongs to the same Lake package as the
+    current module (i.e., is "project-local" rather than from an
+    external library dependency). Declarations defined in the
+    current file (no module index) are always project-local. -/
+def isProjectLocal (env : Environment) (n : Name) : Bool :=
+  match env.getModuleIdxFor? n with
+  | none => true  -- defined in the current file
+  | some idx =>
+    -- Compare package IDs; none = bootstrap/core = external
+    match env.getModulePackageByIdx? idx, env.getModulePackage? with
+    | some pkg, some currentPkg => pkg == currentPkg
+    | _, _ => false
 
 /-- Short label for a declaration's kind. -/
 def declKindLabel (ci : ConstantInfo) : String :=
@@ -75,7 +84,7 @@ def formatResult (env : Environment) (result : TcbResult)
       if ci matches .axiomInfo _ then
         let isStd := standardAxioms.contains name
         axioms := axioms.push (name, isStd)
-      else if isCurrentModule env name then
+      else if isProjectLocal env name then
         userSpec := userSpec.push (name, declKindLabel ci)
       else
         librarySpec := librarySpec.push name

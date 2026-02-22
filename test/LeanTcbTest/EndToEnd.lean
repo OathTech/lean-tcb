@@ -111,7 +111,7 @@ elab "#test_e2e_user_vs_library" : command => do
   match computeTcb env #[`two_is_prime] with
   | .ok result =>
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     -- User spec should contain our definitions + the theorem
     unless fr.userSpec.any (·.1 == `two_is_prime) do
@@ -138,7 +138,7 @@ elab "#test_e2e_counts" : command => do
     unless result.specSet.size < 200 do
       throwError s!"spec set unexpectedly large: {result.specSet.size}"
     let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
-      if isCurrentModule env n then acc.push n else acc
+      if isProjectLocal env n then acc.push n else acc
     let fr := formatResult env result allUserDecls
     -- We expect a small user spec (definitions + theorem, no helpers)
     unless fr.userSpec.size ≤ 10 do
