@@ -85,8 +85,8 @@ private def pluralize (n : Nat) (singular plural : String)
 structure FormattedResult where
   /-- Entry-point names that seeded the analysis. -/
   entryPoints : Array Name
-  /-- Axioms in the spec set, with standard/non-standard tag. -/
-  axioms : Array (Name × Bool)
+  /-- Axioms in the spec set, with standard/non-standard kind. -/
+  axioms : Array (Name × AxiomKind)
   /-- Current-module declarations in the spec set. -/
   userSpec : Array (Name × String)
   /-- Imported declarations in the spec set. -/
@@ -101,13 +101,21 @@ structure FormattedResult where
   warnings : Array String := #[]
   deriving Inhabited
 
+instance : ToString FormattedResult where
+  toString fr :=
+    s!"FormattedResult(entryPoints={fr.entryPoints.size}, \
+      axioms={fr.axioms.size}, \
+      userSpec={fr.userSpec.size}, \
+      librarySpec={fr.librarySpec.size}, \
+      userNotInTcb={fr.userNotInTcb})"
+
 /-- Format a `TcbResult` into categorized groups for display.
     `allUserDecls` should contain all declaration names from
     the current module. -/
 def formatResult (env : Environment) (result : TcbResult)
     (allUserDecls : Array Name) : FormattedResult :=
     Id.run do
-  let mut axioms : Array (Name × Bool) := #[]
+  let mut axioms : Array (Name × AxiomKind) := #[]
   let mut userSpec : Array (Name × String) := #[]
   let mut librarySpec : Array Name := #[]
 
@@ -115,8 +123,10 @@ def formatResult (env : Environment) (result : TcbResult)
     match env.find? name with
     | some ci =>
       if ci matches .axiomInfo _ then
-        let isStd := standardAxioms.contains name
-        axioms := axioms.push (name, isStd)
+        let kind : AxiomKind :=
+          if standardAxioms.contains name then .standard
+          else .nonStandard
+        axioms := axioms.push (name, kind)
       else if isProjectLocal env name then
         userSpec := userSpec.push (name, declKindLabel ci)
       else
@@ -194,7 +204,8 @@ def renderResult (fr : FormattedResult)
     lines := lines.push ""
 
   -- Axioms
-  let (stdAxioms, nonStdAxioms) := fr.axioms.partition (·.2)
+  let (stdAxioms, nonStdAxioms) :=
+    fr.axioms.partition (·.2 == .standard)
   lines := lines.push "── Axioms ──"
   if nonStdAxioms.size > 0 then
     lines := lines.push s!"  {nonStdAxioms.size} NON-STANDARD:"
