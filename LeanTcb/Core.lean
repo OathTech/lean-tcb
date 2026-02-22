@@ -98,15 +98,6 @@ partial def computeTcb (env : Environment)
     Same worklist algorithm as `computeTcb` but additionally records,
     for each discovered name, which parent enqueued it and why.
     Entry points have no parent (not in `parentMap`). -/
-private def appendDep
-    (depsMap : Lean.NameMap (Array (Name × DepReason)))
-    (parent : Name) (child : Name) (reason : DepReason)
-    : Lean.NameMap (Array (Name × DepReason)) :=
-  let arr := match depsMap.find? parent with
-    | some a => a
-    | none   => #[]
-  depsMap.insert parent (arr.push (child, reason))
-
 partial def computeTcbGraph (env : Environment)
     (entryPoints : Array Name)
     : Except String TcbGraphResult := do
@@ -122,8 +113,7 @@ partial def computeTcbGraph (env : Environment)
   let mut specSet : Lean.NameSet := {}
   let mut missingNames : Lean.NameSet := {}
   let mut parentMap : Lean.NameMap (Name × DepReason) := {}
-  let mut depsMap :
-      Lean.NameMap (Array (Name × DepReason)) := {}
+  let mut edgeList : Array (Name × Name × DepReason) := #[]
 
   while h : queue.size > 0 do
     let name := queue[queue.size - 1]'(by omega)
@@ -149,16 +139,16 @@ partial def computeTcbGraph (env : Environment)
         match env.find? ctorName with
         | some ctorCi =>
           -- Record inductive as parent of its constructor
-          depsMap := appendDep depsMap name ctorName
-            .inductCtor
+          edgeList := edgeList.push (name, ctorName,
+            .inductCtor)
           unless parentMap.contains ctorName ||
               entrySet.contains ctorName do
             parentMap := parentMap.insert ctorName
               (name, .inductCtor)
           let ctorRefs := collectConstants #[ctorCi.type]
           for r in ctorRefs do
-            depsMap := appendDep depsMap ctorName r
-              .exprRef
+            edgeList := edgeList.push (ctorName, r,
+              .exprRef)
             unless visited.contains r do
               unless parentMap.contains r ||
                   entrySet.contains r do
@@ -172,7 +162,7 @@ partial def computeTcbGraph (env : Environment)
     | _ => pure ()
 
     for r in refs do
-      depsMap := appendDep depsMap name r .exprRef
+      edgeList := edgeList.push (name, r, .exprRef)
       unless visited.contains r do
         unless parentMap.contains r ||
             entrySet.contains r do
@@ -181,7 +171,7 @@ partial def computeTcbGraph (env : Environment)
 
     -- Constructor → parent inductive
     if let some parent := ctorParentName ci then
-      depsMap := appendDep depsMap name parent .ctorParent
+      edgeList := edgeList.push (name, parent, .ctorParent)
       unless visited.contains parent do
         unless parentMap.contains parent ||
             entrySet.contains parent do
@@ -191,7 +181,7 @@ partial def computeTcbGraph (env : Environment)
 
     -- Recursor → parent inductives
     for parent in recParentNames ci do
-      depsMap := appendDep depsMap name parent .recParent
+      edgeList := edgeList.push (name, parent, .recParent)
       unless visited.contains parent do
         unless parentMap.contains parent ||
             entrySet.contains parent do
@@ -201,14 +191,28 @@ partial def computeTcbGraph (env : Environment)
 
     -- Mutual blocks: enqueue all companions
     for comp in mutualCompanions env name do
-      depsMap := appendDep depsMap name comp
-        .mutualCompanion
+      edgeList := edgeList.push (name, comp,
+        .mutualCompanion)
       unless visited.contains comp do
         unless parentMap.contains comp ||
             entrySet.contains comp do
           parentMap := parentMap.insert comp
             (name, .mutualCompanion)
         queue := queue.push comp
+
+  -- Build depsMap from flat edge list
+  let mut listMap :
+      Lean.NameMap (List (Name × DepReason)) := {}
+  for (parent, child, reason) in edgeList do
+    let lst := match listMap.find? parent with
+      | some l => l
+      | none   => []
+    listMap := listMap.insert parent
+      ((child, reason) :: lst)
+  let mut depsMap :
+      Lean.NameMap (Array (Name × DepReason)) := {}
+  for (parent, lst) in listMap do
+    depsMap := depsMap.insert parent lst.toArray
 
   return {
     entryPoints, specSet, missingNames, parentMap, depsMap

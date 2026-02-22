@@ -71,6 +71,7 @@ private partial def renderNode
     (env : Environment)
     (childrenMap : Lean.NameMap (Array (Name × DepReason)))
     (opts : TreeRenderOpts)
+    (localNames : Lean.NameSet)
     (name : Name)
     (reason : Option DepReason)
     (indent : String)
@@ -106,7 +107,7 @@ private partial def renderNode
     projectChildren := children
   else
     for (child, r) in children do
-      if isProjectLocal env child then
+      if localNames.contains child then
         projectChildren := projectChildren.push (child, r)
       else
         libCount := libCount + 1
@@ -143,8 +144,8 @@ private partial def renderNode
       lines := lines.push libLine
     else
       let (childLines, newSeen) := renderNode env
-        childrenMap opts child (some r) childIndent
-        childIsLast false seen
+        childrenMap opts localNames child (some r)
+        childIndent childIsLast false seen
       seen := newSeen
       for l in childLines do
         lines := lines.push l
@@ -155,6 +156,11 @@ private partial def renderNode
 def renderTree (env : Environment) (graph : TcbGraphResult)
     (opts : TreeRenderOpts := {}) : String := Id.run do
   let childrenMap := sortDepsMap graph
+  -- Pre-compute project-local names for O(1) lookup
+  let mut localNames : Lean.NameSet := {}
+  for name in graph.specSet do
+    if isProjectLocal env name then
+      localNames := localNames.insert name
   let mut allLines : Array String := #[]
   allLines := allLines.push "═══ TCB Dependency Tree ═══"
   allLines := allLines.push ""
@@ -162,7 +168,7 @@ def renderTree (env : Environment) (graph : TcbGraphResult)
   let mut seen : Lean.NameSet := {}
   for ep in graph.entryPoints do
     let (lines, newSeen) := renderNode env childrenMap opts
-      ep none "" true true seen
+      localNames ep none "" true true seen
     seen := newSeen
     for l in lines do
       allLines := allLines.push l
