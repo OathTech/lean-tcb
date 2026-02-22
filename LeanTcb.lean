@@ -1,6 +1,5 @@
-/- Copyright (c) 2026 Mike Dodds. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Mike Dodds -/
+/- Copyright (c) 2026 the lean-tcb contributors. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE. -/
 
 import LeanTcb.Types
 import LeanTcb.Classify
