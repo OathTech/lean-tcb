@@ -109,7 +109,7 @@ elab "#test_structure" : command => do
       throwError "MyPair should be in spec"
     unless result.specSet.contains `MyPair.mk do
       throwError "MyPair.mk should be in spec"
-    logInfo "✓ structure: constructor type walked — PASS"
+    logInfo "✓ structure: constructor — PASS"
   | .error msg => throwError msg
 
 #test_structure

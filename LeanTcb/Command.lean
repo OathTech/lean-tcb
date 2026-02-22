@@ -122,7 +122,7 @@ def elabTcb : CommandElab := fun stx => do
             annotated @[tcb]"
         for name in ac.unnecessary do
           logWarning m!"'{name}' is annotated @[tcb] but \
-            not in the computed TCB"
+            not in the TCB"
 
     logInfo m!"{output}"
   | .error msg =>

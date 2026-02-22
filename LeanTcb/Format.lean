@@ -218,7 +218,7 @@ def renderResult (fr : FormattedResult)
       lines := lines.push
         s!"  • {nameStr}{padding}{kind}{modStr}"
     if autoGenSpec.size > 0 then
-      lines := lines.push "  Auto-generated (also in TCB):"
+      lines := lines.push "  Auto-generated:"
       for (name, kind) in autoGenSpec do
         let nameStr := toString name
         let pad := maxLen - nameStr.length + 2
@@ -233,7 +233,7 @@ def renderResult (fr : FormattedResult)
     fr.axioms.partition (·.2 == .standard)
   lines := lines.push "── Axioms ──"
   if nonStdAxioms.size > 0 then
-    lines := lines.push s!"  {nonStdAxioms.size} NON-STANDARD:"
+    lines := lines.push s!"  {nonStdAxioms.size} non-standard:"
     for (name, _) in nonStdAxioms do
       lines := lines.push s!"    ⚠ {name}"
   if stdAxioms.size > 0 then
@@ -274,7 +274,7 @@ def renderResult (fr : FormattedResult)
           lines := lines.push s!"    ✗ {name}"
       if ac.unannotated.isEmpty && ac.unnecessary.isEmpty then
         lines := lines.push
-          "  ✓ All annotations match the computed TCB"
+          "  ✓ All @[tcb] annotations match the TCB"
       lines := lines.push ""
 
   -- Warnings
@@ -307,7 +307,7 @@ def renderResult (fr : FormattedResult)
   lines := lines.push
     s!"  Not in TCB:     {fr.userNotInTcb} {nitDw}"
   let libDw := pluralize fr.librarySpec.size
-    "declaration" "declarations"
+    "dependency" "dependencies"
   lines := lines.push
     s!"  Depends on:     {fr.librarySpec.size} \
       library {libDw}"

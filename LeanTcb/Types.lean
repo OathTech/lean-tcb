@@ -57,10 +57,10 @@ inductive DepReason where
 def DepReason.label : DepReason → String
   | .exprRefType     => "referenced in type"
   | .exprRefBody     => "referenced in body"
-  | .ctorParent      => "constructor of this inductive"
-  | .recParent       => "recursor of this inductive"
+  | .ctorParent      => "parent inductive (constructor)"
+  | .recParent       => "parent inductive (recursor)"
   | .mutualCompanion => "mutual block companion"
-  | .inductCtor      => "constructor type walked"
+  | .inductCtor      => "constructor"
 
 instance : ToString DepReason where
   toString := DepReason.label
