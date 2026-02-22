@@ -33,18 +33,30 @@ private def findChildren
   | some arr => arr
   | none     => #[]
 
-/-- Sort and deduplicate the deps map for deterministic output. -/
+/-- Sort and deduplicate the deps map for deterministic output.
+    When a child appears multiple times under the same parent
+    (e.g., via both `exprRef` and `recParent`), prefer the more
+    specific structural reason over generic `exprRef`. -/
 private def sortDepsMap (graph : TcbGraphResult)
     : Lean.NameMap (Array (Name × DepReason)) := Id.run do
   let mut sorted : Lean.NameMap (Array (Name × DepReason)) := {}
   for (parent, arr) in graph.depsMap.toList do
-    -- Deduplicate by child name (keep first reason)
-    let mut seen : Lean.NameSet := {}
-    let mut deduped : Array (Name × DepReason) := #[]
+    let mut reasonMap : Lean.NameMap DepReason := {}
+    let mut order : Array Name := #[]
     for (child, reason) in arr do
-      unless seen.contains child do
-        seen := seen.insert child
-        deduped := deduped.push (child, reason)
+      match reasonMap.find? child with
+      | none =>
+        reasonMap := reasonMap.insert child reason
+        order := order.push child
+      | some prev =>
+        -- Prefer structural reasons over generic exprRef
+        match prev, reason with
+        | .exprRef, _ => reasonMap := reasonMap.insert child reason
+        | _, _ => pure ()
+    let deduped := order.filterMap fun child =>
+      match reasonMap.find? child with
+      | some r => some (child, r)
+      | none => none
     sorted := sorted.insert parent
       (deduped.qsort fun a b => Name.lt a.1 b.1)
   return sorted
@@ -79,7 +91,8 @@ private partial def renderNode
   -- Check if already rendered (DAG dedup)
   if seen.contains name then
     let line :=
-      s!"{indent}{connector}{name}{kindStr} (see above)"
+      s!"{indent}{connector}{name}{kindStr}\
+        {reasonStr} (see above)"
     return (#[line], seen)
 
   let mut seen := seen.insert name

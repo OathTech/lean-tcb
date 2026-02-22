@@ -27,12 +27,14 @@ The key insight: for `def`s, the body IS the specification (it defines meaning).
 
 ### Module pipeline
 
-1. **Types.lean** — `TcbResult` (just `entryPoints` + `specSet : NameSet`)
-2. **Classify.lean** — `trustRelevantExprs` returns which `Expr`s to walk per declaration kind; `collectConstants` extracts names via `Expr.foldConsts`
-3. **Core.lean** — `computeTcb`: partial worklist traversal. Handles constructors (enqueue parent inductive), recursors (enqueue all parent inductives), and mutual blocks (enqueue all companions)
+1. **Types.lean** — `TcbResult` (flat spec set), `TcbGraphResult` (spec set + `parentMap` provenance + `depsMap` forward adjacency), `DepReason` (why a dependency was enqueued)
+2. **Classify.lean** — `trustRelevantExprs` returns which `Expr`s to walk per declaration kind; `collectConstants` extracts names via `Expr.foldConsts` and `collectProjTypeNames` for `Expr.proj`
+3. **Core.lean** — `computeTcb` / `computeTcbGraph`: partial worklist traversal. Handles constructors (enqueue parent inductive), recursors (enqueue all parent inductives), and mutual blocks (enqueue all companions). The graph variant records `parentMap` (discovery tree) and `depsMap` (all edges with reasons)
 4. **Attr.lean** — `@[tcb]` tag attribute via `registerTagAttribute`; `isTcbAnnotated` walks parent names for coverage; `checkAnnotations` cross-checks computed vs declared TCB
 5. **Format.lean** — `formatResult` categorizes into axioms/userSpec/librarySpec using `env.getModuleIdxFor?` (returns `none` for current-module declarations); `renderResult` produces the infoview string
-6. **Command.lean** — `#tcb`/`#tcb!` syntax and elaborator; resolves names, runs pipeline, emits warnings for annotation mismatches
+6. **Path.lean** — `findPath` walks `parentMap` backwards from target to entry point; `renderPath` formats the chain for `#tcb_why`
+7. **Tree.lean** — `renderTree` renders `TcbGraphResult` as an indented tree (like Unix `tree`). Supports DAG dedup (`(see above)`), library collapsing, and prefers structural dependency reasons (`recParent`, `mutualCompanion`) over generic `exprRef` in labels
+8. **Command.lean** — `#tcb`/`#tcb!`, `#tcb_tree`/`#tcb_tree!`, `#tcb_why` syntax and elaborators; resolves names, runs pipeline, emits warnings for annotation mismatches
 
 ### Test infrastructure
 

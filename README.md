@@ -1,5 +1,10 @@
 # lean-tcb
 
+> **Status: Experimental** — This project is in early development and has
+> been primarily developed with AI assistance (Claude Code). While it has
+> a test suite, it has not been independently audited. Use at your own
+> risk and verify results manually for high-assurance applications.
+
 Trusted Computing Base analyzer for Lean 4.
 
 When you prove a theorem in Lean, the kernel checks the proof — but the
@@ -41,6 +46,48 @@ Hover over `#tcb` in the infoview to see the analysis:
 - **Summary** — how much of your project is in the TCB vs not
 
 Use `#tcb!` for verbose output that includes library dependencies.
+
+### Dependency tree
+
+`#tcb_tree` renders the full dependency graph as an indented tree:
+
+```lean
+#tcb_tree two_is_prime
+```
+
+```
+═══ TCB Dependency Tree ═══
+
+two_is_prime [theorem]
+├── myPrime [def] ← referenced in type/body
+│   ├── myDvd [def] ← referenced in type/body
+│   │   └── [6 library dependencies]
+│   └── [7 library dependencies]
+└── [3 library dependencies]
+```
+
+Library dependencies are collapsed by default. Use `#tcb_tree!` to expand them.
+
+Structural reasons like "mutual block companion", "recursor enqueued parent
+inductive", and "constructor enqueued parent inductive" are shown instead of
+generic "referenced in type/body" where applicable. Already-rendered nodes
+show `(see above)` with the edge reason preserved.
+
+### Path query
+
+`#tcb_why` explains why a specific declaration is in the TCB:
+
+```lean
+#tcb_why two_is_prime myDvd
+```
+
+```
+═══ TCB Path: two_is_prime → myDvd ═══
+
+  ● two_is_prime [theorem]
+  → myPrime [def] ← referenced in type/body
+  → myDvd [def] ← referenced in type/body
+```
 
 ## How it works
 
