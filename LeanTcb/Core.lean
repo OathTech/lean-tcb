@@ -1,6 +1,5 @@
-/- Copyright (c) 2026 Mike Dodds. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Mike Dodds -/
+/- Copyright (c) 2026 the lean-tcb contributors. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE. -/
 import Lean
 import LeanTcb.Types
 import LeanTcb.Classify
@@ -16,88 +15,18 @@ open Lean
 
 namespace LeanTcb
 
-/-- Compute the trusted computing base for the given entry points.
+/-- Compute the TCB with full dependency provenance.
 
     Starting from entry-point names, follows trust-relevant
     dependencies (type for theorems/axioms/opaques, type+value
     for defs, constructor types for inductives) and collects the
-    transitive specification set.
+    transitive specification set. Additionally records, for each
+    discovered name, which parent enqueued it and why. Entry
+    points have no parent (not in `parentMap`).
 
     Marked `partial` because it provably terminates (finite
     environment) but proving this is not worth the effort for
     a meta-tool. -/
-partial def computeTcb (env : Environment)
-    (entryPoints : Array Name)
-    : Except String TcbResult := do
-  for ep in entryPoints do
-    unless env.contains ep do
-      throw s!"Entry point '{ep}' not found in environment"
-
-  let mut queue : Array Name := entryPoints
-  let mut visited : Lean.NameSet := {}
-  let mut specSet : Lean.NameSet := {}
-  let mut missingNames : Lean.NameSet := {}
-
-  while h : queue.size > 0 do
-    let name := queue[queue.size - 1]'(by omega)
-    queue := queue.pop
-
-    if visited.contains name then
-      continue
-    visited := visited.insert name
-
-    -- Track names not found in the environment
-    let some ci := env.find? name | do
-      missingNames := missingNames.insert name
-      continue
-
-    specSet := specSet.insert name
-
-    let exprs := trustRelevantExprs ci
-    let refs := collectConstants exprs
-
-    -- For inductives: walk constructor types and add to spec
-    match ci with
-    | .inductInfo v =>
-      for ctorName in v.ctors do
-        match env.find? ctorName with
-        | some ctorCi =>
-          let ctorRefs := collectConstants #[ctorCi.type]
-          for r in ctorRefs do
-            unless visited.contains r do
-              queue := queue.push r
-          specSet := specSet.insert ctorName
-          visited := visited.insert ctorName
-        | none =>
-          missingNames := missingNames.insert ctorName
-    | _ => pure ()
-
-    for r in refs do
-      unless visited.contains r do
-        queue := queue.push r
-
-    -- Constructor → parent inductive
-    if let some parent := ctorParentName ci then
-      unless visited.contains parent do
-        queue := queue.push parent
-
-    -- Recursor → parent inductives
-    for parent in recParentNames ci do
-      unless visited.contains parent do
-        queue := queue.push parent
-
-    -- Mutual blocks: enqueue all companions
-    for comp in mutualCompanions env name do
-      unless visited.contains comp do
-        queue := queue.push comp
-
-  return { entryPoints, specSet, missingNames }
-
-/-- Compute the TCB with full dependency provenance.
-
-    Same worklist algorithm as `computeTcb` but additionally records,
-    for each discovered name, which parent enqueued it and why.
-    Entry points have no parent (not in `parentMap`). -/
 partial def computeTcbGraph (env : Environment)
     (entryPoints : Array Name)
     : Except String TcbGraphResult := do
@@ -217,5 +146,15 @@ partial def computeTcbGraph (env : Environment)
   return {
     entryPoints, specSet, missingNames, parentMap, depsMap
   }
+
+/-- Compute the trusted computing base for the given entry points.
+
+    Delegates to `computeTcbGraph` and projects out the graph
+    metadata, keeping only the flat spec set. -/
+def computeTcb (env : Environment)
+    (entryPoints : Array Name)
+    : Except String TcbResult :=
+  (computeTcbGraph env entryPoints).map
+    TcbGraphResult.toTcbResult
 
 end LeanTcb

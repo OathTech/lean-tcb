@@ -80,7 +80,7 @@ Entry points: two_is_prime
 
 ── Summary ──
   Must review:    3 declarations (75% of project)
-  Not in TCB:     1 declarations
+  Not in TCB:     1 declaration
   Depends on:     36 library declarations
 ```
 
