@@ -341,6 +341,21 @@ elab "#test_tree_type_vs_body_reason" : command => do
 
 #test_tree_type_vs_body_reason
 
+-- Singular "library dependency" grammar
+elab "#test_library_singular_grammar" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`treeDvd] with
+  | .ok graph =>
+    let output := renderTree env graph
+    -- Should never have "1 library dependencies" (plural)
+    if (output.splitOn "1 library dependencies").length
+        > 1 then
+      throwError "Should use singular 'dependency'"
+    logInfo "✓ library grammar: PASS"
+  | .error msg => throwError msg
+
+#test_library_singular_grammar
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests: #tcb_tree commands
 -- ═══════════════════════════════════════════════

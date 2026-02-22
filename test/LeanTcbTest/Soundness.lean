@@ -225,3 +225,53 @@ elab "#test_proof_exclusion_term_mode" : command => do
 
 -- Proof exclusion
 #tcb termProof
+
+-- For theorem proof exclusion test (moved from AuditGaps)
+def secretDef : Nat := 42
+
+theorem proofUsesSecret : True :=
+  (fun _ => trivial) secretDef
+
+-- Theorem proof body should NOT be walked
+elab "#test_theorem_proof_exclusion" : command => do
+  let env ← getEnv
+  match computeTcb env #[`proofUsesSecret] with
+  | .ok result =>
+    if result.specSet.contains `secretDef then
+      throwError "secretDef should NOT be in TCB \
+        (only referenced in proof body)"
+    logInfo "✓ theorem proof body excluded: PASS"
+  | .error msg => throwError msg
+
+#test_theorem_proof_exclusion
+
+-- Test missing-names warning rendering with synthetic result
+elab "#test_missing_names_warning_rendered" : command => do
+  let env ← getEnv
+  let fakeResult : TcbResult := {
+    entryPoints := #[`soundThm]
+    specSet :=
+      ({} : Lean.NameSet).insert `soundThm
+    missingNames :=
+      ({} : Lean.NameSet).insert `fakeMissing
+  }
+  let allUserDecls : Array Name := #[`soundThm]
+  let mut fr := formatResult env fakeResult allUserDecls
+  -- Simulate what emitSoundnessWarnings would add
+  fr := { fr with warnings := #[
+    "'fakeMissing' was referenced but not found — \
+      transitive dependencies unknown"
+  ] }
+  unless fr.warnings.size > 0 do
+    throwError "Expected warnings for missing names"
+  let output := renderResult fr
+  unless (output.splitOn "fakeMissing").length > 1 do
+    throwError "Expected fakeMissing in rendered output"
+  unless (output.splitOn "Warnings").length > 1 do
+    throwError "Expected Warnings section"
+  logInfo "✓ missing names warning rendered: PASS"
+
+#test_missing_names_warning_rendered
+
+-- Smoke test (moved from AuditGaps)
+#tcb proofUsesSecret

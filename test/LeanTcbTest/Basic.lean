@@ -124,3 +124,47 @@ elab "#test_user_vs_library" : command => do
 -- ═══════════════════════════════════════════════
 
 #tcb myDouble_pos
+
+-- computeTcbGraph error path for unknown entry point
+elab "#test_graph_unknown_entry_point" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`nonexistent_graph_xyz] with
+  | .ok _ =>
+    throwError "Should have failed for unknown name"
+  | .error msg =>
+    unless (msg.splitOn "not found").length > 1 do
+      throwError s!"Expected 'not found' in error, \
+        got: {msg}"
+    logInfo "✓ graph unknown entry point: PASS"
+
+#test_graph_unknown_entry_point
+
+-- Entry points formatted as comma-separated list
+elab "#test_entry_point_format" : command => do
+  let env ← getEnv
+  match computeTcb env #[`myPred, `myDouble] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let output := renderResult fr
+    -- Should NOT contain #[ (old array format)
+    if (output.splitOn "#[").length > 1 then
+      throwError "Entry points should not use #[] format"
+    -- Should contain comma separator
+    unless (output.splitOn ", ").length > 1 do
+      throwError "Expected comma-separated entry points"
+    logInfo "✓ entry point format: PASS"
+  | .error msg => throwError msg
+
+#test_entry_point_format
+
+-- Package info should be available in normal Lake builds
+elab "#test_package_info_available" : command => do
+  let env ← getEnv
+  unless env.getModulePackage?.isSome do
+    throwError "getModulePackage? should be some in Lake"
+  logInfo "✓ package info available: PASS"
+
+#test_package_info_available

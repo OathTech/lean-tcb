@@ -182,3 +182,82 @@ elab "#test_ann_mid_hierarchy_coverage" : command => do
 
 -- Mid-hierarchy annotation
 #tcb annMidLevel
+
+-- For annotation hierarchy test (moved from AuditGaps)
+inductive AuditColor where | red | green
+
+@[tcb] inductive AuditColor2 where | x | y
+
+def useAuditColor : AuditColor → Nat
+  | .red => 0 | .green => 1
+
+-- @[tcb] on unused inductive should be unnecessary
+elab "#test_annotation_unnecessary" : command => do
+  let env ← getEnv
+  match computeTcb env #[`useAuditColor] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let userSpecNames :=
+      (formatResult env result allUserDecls).userSpec.map
+        (·.1)
+    let ac :=
+      checkAnnotations env userSpecNames allUserDecls
+    -- AuditColor2 is annotated but not in the TCB
+    unless ac.unnecessary.contains `AuditColor2 do
+      throwError "AuditColor2 should be unnecessary"
+    logInfo "✓ annotation unnecessary: PASS"
+  | .error msg => throwError msg
+
+#test_annotation_unnecessary
+
+-- Annotation warnings include corrective action hints
+elab "#test_annotation_action_hints" : command => do
+  let env ← getEnv
+  match computeTcb env #[`useAuditColor] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let userSpecNames := fr.userSpec.map (·.1)
+    let ac :=
+      checkAnnotations env userSpecNames allUserDecls
+    let output := renderResult fr false (some ac)
+    -- Check for corrective action hints
+    if ac.unannotated.size > 0 then
+      unless (output.splitOn "consider adding").length
+          > 1 do
+        throwError "Expected 'consider adding @[tcb]' hint"
+    if ac.unnecessary.size > 0 then
+      unless (output.splitOn "for these entry points").length
+          > 1 do
+        throwError "Expected 'for these entry points' caveat"
+    logInfo "✓ annotation action hints: PASS"
+  | .error msg => throwError msg
+
+#test_annotation_action_hints
+
+-- Auto-generated declarations should not inflate percentage
+elab "#test_auto_generated_filtering" : command => do
+  let env ← getEnv
+  match computeTcb env #[`useAuditColor] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    unless fr.humanSpecCount ≤ fr.userSpec.size do
+      throwError "humanSpecCount should not exceed \
+        userSpec.size"
+    unless fr.humanNotInTcb ≤ fr.userNotInTcb do
+      throwError "humanNotInTcb should not exceed \
+        userNotInTcb"
+    logInfo "✓ auto-generated filtering: PASS"
+  | .error msg => throwError msg
+
+#test_auto_generated_filtering
+
+-- Smoke test (moved from AuditGaps)
+#tcb useAuditColor
