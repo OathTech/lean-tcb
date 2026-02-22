@@ -223,6 +223,58 @@ elab "#test_deep_chain_tree" : command => do
 #test_deep_chain_tree
 
 -- ═══════════════════════════════════════════════
+-- Empty / library entry point tests (C7)
+-- ═══════════════════════════════════════════════
+
+elab "#test_empty_entry_points" : command => do
+  let env ← getEnv
+  match computeTcb env #[] with
+  | .ok result =>
+    unless result.specSet.isEmpty do
+      throwError "empty entry points should give empty spec"
+    unless result.missingNames.isEmpty do
+      throwError "empty entry points should give no missing"
+    logInfo "✓ empty entry points: PASS"
+  | .error msg => throwError msg
+
+#test_empty_entry_points
+
+elab "#test_empty_entry_points_graph" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[] with
+  | .ok graph =>
+    unless graph.specSet.isEmpty do
+      throwError "empty entry points should give empty spec"
+    logInfo "✓ empty entry points (graph): PASS"
+  | .error msg => throwError msg
+
+#test_empty_entry_points_graph
+
+elab "#test_library_entry_tree" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`Nat.add] with
+  | .ok graph =>
+    let output := renderTree env graph
+    unless (output.splitOn "Nat.add").length > 1 do
+      throwError s!"expected Nat.add in tree: {output}"
+    logInfo "✓ library entry point tree: PASS"
+  | .error msg => throwError msg
+
+#test_library_entry_tree
+
+elab "#test_library_entry_why" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`Nat.add] with
+  | .ok graph =>
+    let output := renderPath env graph `Nat.add `Nat.add
+    unless (output.splitOn "entry point").length > 1 do
+      throwError s!"expected 'entry point' msg: {output}"
+    logInfo "✓ library entry point why: PASS"
+  | .error msg => throwError msg
+
+#test_library_entry_why
+
+-- ═══════════════════════════════════════════════
 -- Smoke tests
 -- ═══════════════════════════════════════════════
 

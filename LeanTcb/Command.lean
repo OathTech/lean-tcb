@@ -26,6 +26,53 @@ private def warnIfNoPackageInfo : CommandElabM Unit := do
       build?) — all imported declarations classified as \
       'library'. Project-local results may be incomplete."
 
+/-- Check project-local TCB members for soundness issues
+    (sorry, native\_decide, unsafe) and emit warnings.
+    Returns warning strings for inclusion in rendered output. -/
+private def emitSoundnessWarnings (env : Environment)
+    (specSet : Lean.NameSet)
+    (missingNames : Lean.NameSet)
+    : CommandElabM (Array String) := do
+  let mut warnings : Array String := #[]
+  let mut sorryWarned : Lean.NameSet := {}
+  let mut nativeWarned : Lean.NameSet := {}
+  for name in specSet do
+    if isProjectLocal env name then
+      let axs ← liftCoreM <| Lean.collectAxioms name
+      if axs.contains `sorryAx then
+        unless sorryWarned.contains name do
+          sorryWarned := sorryWarned.insert name
+          warnings := warnings.push
+            s!"'{name}' depends on sorry — \
+              proof is incomplete"
+          logWarning m!"'{name}' depends on sorry — \
+            proof is incomplete"
+      if axs.contains ``Lean.ofReduceBool ||
+          axs.contains ``Lean.ofReduceNat then
+        unless nativeWarned.contains name do
+          nativeWarned := nativeWarned.insert name
+          warnings := warnings.push
+            s!"'{name}' uses native_decide — \
+              the Lean compiler is in the trust path"
+          logWarning m!"'{name}' uses native_decide — \
+            the Lean compiler is in the trust path"
+  -- Note: `partial def` compiles to `opaqueInfo` in Lean
+  -- 4.27.0, so ConstantInfo.isPartial never fires. The
+  -- type-only traversal for opaqueInfo is already correct.
+  for name in specSet do
+    if let some ci := env.find? name then
+      if ci.isUnsafe then
+        warnings := warnings.push
+          s!"'{name}' is unsafe — the kernel \
+            provides weaker guarantees"
+        if isProjectLocal env name then
+          logWarning m!"'{name}' is unsafe — the \
+            kernel provides weaker guarantees"
+  for name in missingNames do
+    logWarning m!"'{name}' was referenced but not \
+      found — transitive dependencies unknown"
+  return warnings
+
 /-- `#tcb name₁ name₂ ...` analyses the trust boundary for the
     given entry points.
     `#tcb! name₁ ...` includes full library dependency listing. -/
@@ -51,53 +98,10 @@ def elabTcb : CommandElab := fun stx => do
         if isProjectLocal env n then acc.push n else acc
 
     let mut fr := formatResult env result allUserDecls
-
-    -- Check all project-local TCB members for sorry and
-    -- native_decide (not just entry points)
-    let mut sorryWarned : Lean.NameSet := {}
-    let mut nativeWarned : Lean.NameSet := {}
-    for name in result.specSet do
-      if isProjectLocal env name then
-        let axs ← liftCoreM <| Lean.collectAxioms name
-        if axs.contains `sorryAx then
-          unless sorryWarned.contains name do
-            sorryWarned := sorryWarned.insert name
-            let w := s!"'{name}' depends on sorry — \
-              proof is incomplete"
-            fr := { fr with
-              warnings := fr.warnings.push w }
-            logWarning m!"'{name}' depends on sorry — \
-              proof is incomplete"
-        if axs.contains ``Lean.ofReduceBool ||
-            axs.contains ``Lean.ofReduceNat then
-          unless nativeWarned.contains name do
-            nativeWarned := nativeWarned.insert name
-            let w := s!"'{name}' uses native_decide — \
-              the Lean compiler is in the trust path"
-            fr := { fr with
-              warnings := fr.warnings.push w }
-            logWarning m!"'{name}' uses native_decide — \
-              the Lean compiler is in the trust path"
-
-    -- Check for unsafe definitions in the TCB
-    -- Note: `partial def` compiles to `opaqueInfo` in Lean
-    -- 4.27.0, so ConstantInfo.isPartial never fires. The
-    -- type-only traversal for opaqueInfo is already correct.
-    for name in result.specSet do
-      if let some ci := env.find? name then
-        if ci.isUnsafe then
-          let w := s!"'{name}' is unsafe — the kernel \
-            provides weaker guarantees"
-          fr := { fr with
-            warnings := fr.warnings.push w }
-          if isProjectLocal env name then
-            logWarning m!"'{name}' is unsafe — the \
-              kernel provides weaker guarantees"
-
-    -- Emit logWarning for missing names
-    for name in result.missingNames do
-      logWarning m!"'{name}' was referenced but not \
-        found — transitive dependencies unknown"
+    let soundnessWarnings ← emitSoundnessWarnings env
+      result.specSet result.missingNames
+    fr := { fr with
+      warnings := fr.warnings ++ soundnessWarnings }
 
     let userSpecNames := fr.userSpec.map (·.1)
     let checkAnns := tcb.checkAnnotations.get (← getOptions)
@@ -140,6 +144,8 @@ def elabTcbTree : CommandElab := fun stx => do
 
   match computeTcbGraph env names with
   | .ok graph =>
+    let _ ← emitSoundnessWarnings env
+      graph.specSet graph.missingNames
     let opts : TreeRenderOpts := { expandLibrary := expandLib }
     let output := renderTree env graph opts
     logInfo m!"{output}"
@@ -163,6 +169,8 @@ def elabTcbWhy : CommandElab := fun stx => do
 
   match computeTcbGraph env #[epName] with
   | .ok graph =>
+    let _ ← emitSoundnessWarnings env
+      graph.specSet graph.missingNames
     let output := renderPath env graph epName tgtName
     logInfo m!"{output}"
   | .error msg =>
