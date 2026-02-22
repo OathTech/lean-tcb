@@ -21,18 +21,18 @@ set_option tcb.checkAnnotations true
 -- Fixtures
 -- ═══════════════════════════════════════════════
 
--- For theorem proof exclusion test (H4)
+-- For theorem proof exclusion test
 def secretDef : Nat := 42
 
 theorem proofUsesSecret : True :=
   (fun _ => trivial) secretDef
 
--- For opaque body exclusion test (H6)
+-- For opaque body exclusion test
 def opaqueHelper : Nat := 99
 
 opaque opaqueWithBody : Nat := opaqueHelper + 1
 
--- For proj-in-let test (M5)
+-- For proj-in-let test
 structure LetProjStruct where
   val : Nat
 
@@ -40,7 +40,7 @@ def projInLet (s : LetProjStruct) : Nat :=
   let v := s.val
   v + 1
 
--- For mutual partial companions test (M7)
+-- For mutual partial companions test
 mutual
   partial def mpEven : Nat → Bool
     | 0 => true
@@ -50,7 +50,7 @@ mutual
     | n + 1 => mpEven n
 end
 
--- For annotation hierarchy test (M11)
+-- For annotation hierarchy test
 inductive AuditColor where | red | green
 
 @[tcb] inductive AuditColor2 where | x | y
@@ -62,7 +62,7 @@ def useAuditColor : AuditColor → Nat
 -- Tests
 -- ═══════════════════════════════════════════════
 
--- H4: Theorem proof body should NOT be walked
+-- Theorem proof body should NOT be walked
 elab "#test_theorem_proof_exclusion" : command => do
   let env ← getEnv
   match computeTcb env #[`proofUsesSecret] with
@@ -75,7 +75,7 @@ elab "#test_theorem_proof_exclusion" : command => do
 
 #test_theorem_proof_exclusion
 
--- H6: Opaque body should NOT be walked
+-- Opaque body should NOT be walked
 elab "#test_opaque_body_excluded" : command => do
   let env ← getEnv
   match computeTcb env #[`opaqueWithBody] with
@@ -90,7 +90,7 @@ elab "#test_opaque_body_excluded" : command => do
 
 #test_opaque_body_excluded
 
--- H5: computeTcbGraph error path for unknown entry point
+-- computeTcbGraph error path for unknown entry point
 elab "#test_graph_unknown_entry_point" : command => do
   let env ← getEnv
   match computeTcbGraph env #[`nonexistent_graph_xyz] with
@@ -104,7 +104,7 @@ elab "#test_graph_unknown_entry_point" : command => do
 
 #test_graph_unknown_entry_point
 
--- M5: Expr.proj inside let-binding
+-- Expr.proj inside let-binding
 elab "#test_proj_in_let" : command => do
   let env ← getEnv
   match computeTcb env #[`projInLet] with
@@ -117,7 +117,7 @@ elab "#test_proj_in_let" : command => do
 
 #test_proj_in_let
 
--- M7: Mutual partial def companions (opaqueInfo branch)
+-- Mutual partial def companions (opaqueInfo branch)
 elab "#test_mutual_partial_companions" : command => do
   let env ← getEnv
   match computeTcb env #[`mpEven] with
@@ -132,7 +132,7 @@ elab "#test_mutual_partial_companions" : command => do
 
 #test_mutual_partial_companions
 
--- M2: Entry points formatted as comma-separated list
+-- Entry points formatted as comma-separated list
 elab "#test_entry_point_format" : command => do
   let env ← getEnv
   match computeTcb env #[`secretDef, `opaqueHelper] with
@@ -153,7 +153,7 @@ elab "#test_entry_point_format" : command => do
 
 #test_entry_point_format
 
--- M1: Singular "library dependency" grammar
+-- Singular "library dependency" grammar
 elab "#test_library_singular_grammar" : command => do
   let env ← getEnv
   match computeTcbGraph env #[`secretDef] with
@@ -168,7 +168,7 @@ elab "#test_library_singular_grammar" : command => do
 
 #test_library_singular_grammar
 
--- M11: @[tcb] on unused inductive should be unnecessary
+-- @[tcb] on unused inductive should be unnecessary
 elab "#test_annotation_unnecessary" : command => do
   let env ← getEnv
   match computeTcb env #[`useAuditColor] with
@@ -219,7 +219,7 @@ elab "#test_missing_names_warning_rendered" : command => do
 
 #test_missing_names_warning_rendered
 
--- L3: Annotation warnings include corrective action hints
+-- Annotation warnings include corrective action hints
 elab "#test_annotation_action_hints" : command => do
   let env ← getEnv
   match computeTcb env #[`useAuditColor] with
@@ -246,7 +246,7 @@ elab "#test_annotation_action_hints" : command => do
 
 #test_annotation_action_hints
 
--- H3: Package info should be available in normal Lake builds
+-- Package info should be available in normal Lake builds
 elab "#test_package_info_available" : command => do
   let env ← getEnv
   unless env.getModulePackage?.isSome do
@@ -255,7 +255,7 @@ elab "#test_package_info_available" : command => do
 
 #test_package_info_available
 
--- L9: Library entry point should show hint
+-- Library entry point should show hint
 elab "#test_library_entry_point_hint" : command => do
   let env ← getEnv
   match computeTcb env #[`Nat.add] with
@@ -274,7 +274,7 @@ elab "#test_library_entry_point_hint" : command => do
 
 #test_library_entry_point_hint
 
--- M4: Auto-generated declarations should not inflate percentage
+-- Auto-generated declarations should not inflate percentage
 elab "#test_auto_generated_filtering" : command => do
   let env ← getEnv
   -- useAuditColor references AuditColor which generates

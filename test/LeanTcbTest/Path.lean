@@ -155,7 +155,7 @@ elab "#test_path_render_entry_point" : command => do
 #test_path_render_entry_point
 
 -- ═══════════════════════════════════════════════
--- Type vs body reason distinction in path (U3)
+-- Type vs body reason distinction in path
 -- ═══════════════════════════════════════════════
 
 elab "#test_path_type_vs_body_reason" : command => do
