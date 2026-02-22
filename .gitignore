@@ -1,0 +1,4 @@
+.lake/
+.claude/
+lake-packages/
+build/
