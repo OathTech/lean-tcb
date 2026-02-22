@@ -229,3 +229,28 @@ elab "#test_why_classical_choice" : command => do
 #tcb_tree sumWithHelper
 #tcb_why sumWithHelper sumWithHelper.go
 #tcb_why chooseNat Classical.choice
+
+-- For proj-in-let test (moved from AuditGaps)
+structure LetProjStruct where
+  val : Nat
+
+def projInLet (s : LetProjStruct) : Nat :=
+  let v := s.val
+  v + 1
+
+-- Expr.proj inside let-binding
+elab "#test_proj_in_let" : command => do
+  let env ← getEnv
+  match computeTcb env #[`projInLet] with
+  | .ok result =>
+    unless result.specSet.contains `LetProjStruct do
+      throwError "LetProjStruct should be in spec \
+        (proj in let-binding)"
+    logInfo "✓ proj in let-binding: PASS"
+  | .error msg => throwError msg
+
+#test_proj_in_let
+
+-- Smoke tests (moved from AuditGaps)
+#tcb projInLet
+#tcb_tree projInLet

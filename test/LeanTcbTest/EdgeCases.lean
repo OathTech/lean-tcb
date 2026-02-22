@@ -283,3 +283,45 @@ elab "#test_library_entry_why" : command => do
 #tcb edgeUsesPrivate
 #tcb_tree chain9
 #tcb_why chain9 chain0
+
+-- For opaque body exclusion test (moved from AuditGaps)
+def opaqueHelper : Nat := 99
+
+opaque opaqueWithBody : Nat := opaqueHelper + 1
+
+-- Opaque body should NOT be walked
+elab "#test_opaque_body_excluded" : command => do
+  let env ← getEnv
+  match computeTcb env #[`opaqueWithBody] with
+  | .ok result =>
+    unless result.specSet.contains `opaqueWithBody do
+      throwError "opaqueWithBody should be in spec"
+    if result.specSet.contains `opaqueHelper then
+      throwError "opaqueHelper should NOT be in spec \
+        (opaque body not walked)"
+    logInfo "✓ opaque body exclusion: PASS"
+  | .error msg => throwError msg
+
+#test_opaque_body_excluded
+
+-- Library entry point should show hint
+elab "#test_library_entry_point_hint" : command => do
+  let env ← getEnv
+  match computeTcb env #[`Nat.add] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let output := renderResult fr
+    unless (output.splitOn
+        "library declarations").length > 1 do
+      throwError s!"expected library hint in output: \
+        {output}"
+    logInfo "✓ library entry point hint: PASS"
+  | .error msg => throwError msg
+
+#test_library_entry_point_hint
+
+-- Smoke test (moved from AuditGaps)
+#tcb opaqueWithBody

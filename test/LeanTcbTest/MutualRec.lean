@@ -270,3 +270,31 @@ elab "#test_mutual_theorem_companions" : command => do
 #tcb_why useEven mOdd
 #tcb_why colorToNat Color
 #tcb mt1
+
+-- For mutual partial companions test (moved from AuditGaps)
+mutual
+  partial def mpEven : Nat → Bool
+    | 0 => true
+    | n + 1 => mpOdd n
+  partial def mpOdd : Nat → Bool
+    | 0 => false
+    | n + 1 => mpEven n
+end
+
+-- Mutual partial def companions (opaqueInfo branch)
+elab "#test_mutual_partial_companions" : command => do
+  let env ← getEnv
+  match computeTcb env #[`mpEven] with
+  | .ok result =>
+    unless result.specSet.contains `mpEven do
+      throwError "mpEven should be in spec"
+    unless result.specSet.contains `mpOdd do
+      throwError "mpOdd should be in spec \
+        (mutual companion via opaqueInfo)"
+    logInfo "✓ mutual partial companions: PASS"
+  | .error msg => throwError msg
+
+#test_mutual_partial_companions
+
+-- Smoke test (moved from AuditGaps)
+#tcb mpEven
