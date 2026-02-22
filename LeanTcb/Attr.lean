@@ -13,6 +13,14 @@ against the computed spec set.
 
 open Lean
 
+/-- When `true`, `#tcb` cross-checks computed TCB against
+    `@[tcb]` annotations and warns about mismatches. -/
+register_option tcb.checkAnnotations : Bool := {
+  defValue := false
+  descr := "Enable @[tcb] annotation cross-checking \
+    in #tcb output"
+}
+
 namespace LeanTcb
 
 /-- The `@[tcb]` attribute marks a declaration as an expected member

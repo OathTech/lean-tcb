@@ -101,17 +101,22 @@ def elabTcb : CommandElab := fun stx => do
         found — transitive dependencies unknown"
 
     let userSpecNames := fr.userSpec.map (·.1)
-    let annCheck :=
-      checkAnnotations env userSpecNames allUserDecls
+    let checkAnns := tcb.checkAnnotations.get (← getOptions)
+    let annCheck : Option AnnotationCheck :=
+      if checkAnns then
+        some (checkAnnotations env userSpecNames allUserDecls)
+      else
+        none
     let output := renderResult fr verbose annCheck
 
-    if annCheck.hasAnnotations then
-      for name in annCheck.unannotated do
-        logWarning m!"'{name}' is in the TCB but not \
-          annotated @[tcb]"
-      for name in annCheck.unnecessary do
-        logWarning m!"'{name}' is annotated @[tcb] but \
-          not in the computed TCB"
+    if let some ac := annCheck then
+      if ac.hasAnnotations then
+        for name in ac.unannotated do
+          logWarning m!"'{name}' is in the TCB but not \
+            annotated @[tcb]"
+        for name in ac.unnecessary do
+          logWarning m!"'{name}' is annotated @[tcb] but \
+            not in the computed TCB"
 
     logInfo m!"{output}"
   | .error msg =>
