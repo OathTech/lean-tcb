@@ -79,7 +79,7 @@ elab "#test_cross_file_stdlib_still_library" : command => do
 #test_cross_file_stdlib_still_library
 
 -- ═══════════════════════════════════════════════
--- Module name rendering test (U7)
+-- Module name rendering test
 -- ═══════════════════════════════════════════════
 
 elab "#test_cross_file_module_names" : command => do

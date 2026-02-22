@@ -223,7 +223,7 @@ elab "#test_deep_chain_tree" : command => do
 #test_deep_chain_tree
 
 -- ═══════════════════════════════════════════════
--- Empty / library entry point tests (C7)
+-- Empty / library entry point tests
 -- ═══════════════════════════════════════════════
 
 elab "#test_empty_entry_points" : command => do

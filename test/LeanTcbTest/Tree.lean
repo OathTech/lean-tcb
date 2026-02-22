@@ -159,7 +159,7 @@ elab "#test_tree_children_sorted" : command => do
 
 #test_tree_children_sorted
 
--- M6: Shared dependency across entry points shows (see above)
+-- Shared dependency across entry points shows (see above)
 def treeSharedDep (n : Nat) : Nat := n + 1
 theorem treeSharedThm1 : treeSharedDep 0 = 1 := rfl
 theorem treeSharedThm2 : treeSharedDep 1 = 2 := rfl
@@ -296,7 +296,7 @@ elab "#test_tree_auto_gen_collapse" : command => do
 #test_tree_auto_gen_collapse
 
 -- ═══════════════════════════════════════════════
--- Type vs body reason distinction test (U3)
+-- Type vs body reason distinction test
 -- ═══════════════════════════════════════════════
 
 elab "#test_tree_type_vs_body_reason" : command => do

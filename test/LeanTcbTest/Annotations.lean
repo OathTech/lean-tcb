@@ -117,7 +117,7 @@ elab "#test_ann_inductive_coverage" : command => do
 
 #test_ann_inductive_coverage
 
--- M8: .num branch in isTcbAnnotated
+-- .num branch in isTcbAnnotated
 elab "#test_num_branch_coverage" : command => do
   let env ← getEnv
   -- Construct a synthetic .num name under @[tcb] annDvd
