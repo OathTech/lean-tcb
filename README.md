@@ -82,6 +82,8 @@ Entry points: two_is_prime
   Must review:    3 declarations (75% of project)
   Not in TCB:     1 declaration
   Depends on:     36 library declarations
+
+Tip: #tcb_tree for dependency graph · #tcb_why <entry> <name> to trace a path
 ```
 
 The tool found that `two_is_prime`'s meaning depends on `myPrime` and `myDvd`
@@ -106,17 +108,21 @@ You can analyze multiple entry points at once: `#tcb theorem1 theorem2`.
 ═══ TCB Dependency Tree ═══
 
 two_is_prime [theorem]
-├── myPrime [def] ← referenced in type/body
-│   ├── myDvd [def] ← referenced in type/body
+├── myPrime [def] ← referenced in type
+│   ├── myDvd [def] ← referenced in body
 │   │   └── [6 library dependencies]
 │   └── [7 library dependencies]
 └── [3 library dependencies]
+
+Tip: #tcb_why <entry> <name> to trace why a name is included
 ```
 
-Library dependencies are collapsed by default. Use `#tcb_tree!` to expand
-them. Each edge is labeled with why the dependency exists — structural
-reasons like "mutual block companion" or "recursor enqueued parent inductive"
-are shown where applicable. Already-rendered nodes show `(see above)` to
+Library dependencies and auto-generated declarations (recursors, casesOn,
+match helpers) are collapsed by default. Use `#tcb_tree!` to expand library
+dependencies. Each edge is labeled with why the dependency exists —
+"referenced in type" vs "referenced in body" for expression references, and
+structural reasons like "mutual block companion" or "recursor of this
+inductive" where applicable. Already-rendered nodes show `(see above)` to
 handle diamond dependencies.
 
 ## Path query
@@ -131,8 +137,10 @@ handle diamond dependencies.
 ═══ TCB Path: two_is_prime → myDvd ═══
 
   ● two_is_prime [theorem]
-  → myPrime [def] ← referenced in type/body
-  → myDvd [def] ← referenced in type/body
+  → myPrime [def] ← referenced in type
+  → myDvd [def] ← referenced in body
+
+Tip: #tcb_tree for the full dependency graph
 ```
 
 If the target is not in the TCB, the tool says so — useful for confirming

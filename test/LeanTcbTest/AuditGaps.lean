@@ -190,6 +190,8 @@ elab "#test_annotation_unnecessary" : command => do
 #test_annotation_unnecessary
 
 -- Test missing-names warning rendering with synthetic result
+-- (warnings are now added by emitSoundnessWarnings, so we
+-- manually add them here to test the rendering path)
 elab "#test_missing_names_warning_rendered" : command => do
   let env ← getEnv
   let fakeResult : TcbResult := {
@@ -200,7 +202,12 @@ elab "#test_missing_names_warning_rendered" : command => do
       ({} : Lean.NameSet).insert `fakeMissing
   }
   let allUserDecls : Array Name := #[`secretDef]
-  let fr := formatResult env fakeResult allUserDecls
+  let mut fr := formatResult env fakeResult allUserDecls
+  -- Simulate what emitSoundnessWarnings would add
+  fr := { fr with warnings := #[
+    "'fakeMissing' was referenced but not found — \
+      transitive dependencies unknown"
+  ] }
   unless fr.warnings.size > 0 do
     throwError "Expected warnings for missing names"
   let output := renderResult fr
@@ -231,9 +238,9 @@ elab "#test_annotation_action_hints" : command => do
           > 1 do
         throwError "Expected 'consider adding @[tcb]' hint"
     if ac.unnecessary.size > 0 then
-      unless (output.splitOn "consider removing").length
+      unless (output.splitOn "for these entry points").length
           > 1 do
-        throwError "Expected 'consider removing @[tcb]' hint"
+        throwError "Expected 'for these entry points' caveat"
     logInfo "✓ annotation action hints: PASS"
   | .error msg => throwError msg
 

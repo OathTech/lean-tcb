@@ -79,6 +79,43 @@ elab "#test_cross_file_stdlib_still_library" : command => do
 #test_cross_file_stdlib_still_library
 
 -- ═══════════════════════════════════════════════
+-- Module name rendering test (U7)
+-- ═══════════════════════════════════════════════
+
+elab "#test_cross_file_module_names" : command => do
+  let env ← getEnv
+  match computeTcb env #[`crossThm] with
+  | .ok result =>
+    let allProjectDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+        if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allProjectDecls
+    let output := renderResult fr false none (some env)
+    -- crossDef is from CrossFileFixtures — module name
+    -- should appear in the rendered output
+    unless (output.splitOn "CrossFileFixtures").length
+        > 1 do
+      throwError s!"expected module name \
+        'CrossFileFixtures' in output: {output}"
+    -- crossThm is defined in THIS file (no module idx)
+    -- so it should NOT have a module annotation
+    let lines := output.splitOn "\n"
+    for line in lines do
+      if (line.splitOn "crossThm").length > 1 then
+        if (line.splitOn "CrossFile").length > 1 then
+          -- Make sure it's not matching the Fixtures
+          -- module — crossThm should have no annotation
+          unless (line.splitOn "CrossFileFixtures").length
+              > 1 do
+            throwError s!"crossThm (current file) \
+              should not have a module annotation: \
+              {line}"
+    logInfo "✓ cross-file module names: PASS"
+  | .error msg => throwError msg
+
+#test_cross_file_module_names
+
+-- ═══════════════════════════════════════════════
 -- Smoke test: #tcb on imported declaration
 -- ═══════════════════════════════════════════════
 

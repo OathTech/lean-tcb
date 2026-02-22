@@ -45,16 +45,18 @@ instance : ToString TcbResult where
 
 /-- Why a dependency was enqueued during traversal. -/
 inductive DepReason where
-  | exprRef         -- referenced in trust-relevant expressions
-  | ctorParent      -- constructor enqueued parent inductive
-  | recParent       -- recursor enqueued parent inductive
-  | mutualCompanion -- mutual block companion
-  | inductCtor      -- inductive enqueued its constructor
+  | exprRefType      -- referenced in type
+  | exprRefBody      -- referenced in body (def/abbrev only)
+  | ctorParent       -- constructor enqueued parent inductive
+  | recParent        -- recursor enqueued parent inductive
+  | mutualCompanion  -- mutual block companion
+  | inductCtor       -- inductive enqueued its constructor
   deriving Inhabited, BEq, Repr
 
 /-- Human-readable label for a `DepReason`. -/
 def DepReason.label : DepReason → String
-  | .exprRef         => "referenced in type/body"
+  | .exprRefType     => "referenced in type"
+  | .exprRefBody     => "referenced in body"
   | .ctorParent      => "constructor of this inductive"
   | .recParent       => "recursor of this inductive"
   | .mutualCompanion => "mutual block companion"
