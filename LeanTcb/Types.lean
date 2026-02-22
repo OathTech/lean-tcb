@@ -12,6 +12,20 @@ open Lean
 
 namespace LeanTcb
 
+/-- Classification of axioms in the spec set. -/
+inductive AxiomKind where
+  /-- Ships with Lean core (propext, Classical.choice,
+      Quot.sound). -/
+  | standard
+  /-- User-introduced or non-standard axiom. -/
+  | nonStandard
+  deriving Inhabited, BEq, Repr
+
+instance : ToString AxiomKind where
+  toString
+    | .standard => "standard"
+    | .nonStandard => "non-standard"
+
 /-- Result of the TCB analysis for a single entry-point set. -/
 structure TcbResult where
   /-- The entry-point theorem names that seeded the analysis. -/
@@ -23,6 +37,12 @@ structure TcbResult where
   missingNames : Lean.NameSet := {}
   deriving Inhabited
 
+instance : ToString TcbResult where
+  toString r :=
+    s!"TcbResult(entryPoints={r.entryPoints.size}, \
+      specSet={r.specSet.toList.length}, \
+      missingNames={r.missingNames.toList.length})"
+
 /-- Why a dependency was enqueued during traversal. -/
 inductive DepReason where
   | exprRef         -- referenced in trust-relevant expressions
@@ -30,7 +50,7 @@ inductive DepReason where
   | recParent       -- recursor enqueued parent inductive
   | mutualCompanion -- mutual block companion
   | inductCtor      -- inductive enqueued its constructor
-  deriving Inhabited, BEq
+  deriving Inhabited, BEq, Repr
 
 /-- Human-readable label for a `DepReason`. -/
 def DepReason.label : DepReason → String
@@ -39,6 +59,9 @@ def DepReason.label : DepReason → String
   | .recParent       => "recursor of this inductive"
   | .mutualCompanion => "mutual block companion"
   | .inductCtor      => "constructor type walked"
+
+instance : ToString DepReason where
+  toString := DepReason.label
 
 /-- TCB result with full dependency provenance. -/
 structure TcbGraphResult where
@@ -54,6 +77,12 @@ structure TcbGraphResult where
       in `parentMap`. -/
   depsMap : Lean.NameMap (Array (Name × DepReason)) := {}
   deriving Inhabited
+
+instance : ToString TcbGraphResult where
+  toString g :=
+    s!"TcbGraphResult(entryPoints={g.entryPoints.size}, \
+      specSet={g.specSet.toList.length}, \
+      missingNames={g.missingNames.toList.length})"
 
 def TcbGraphResult.toTcbResult (g : TcbGraphResult) : TcbResult :=
   { entryPoints := g.entryPoints

@@ -54,6 +54,13 @@ structure AnnotationCheck where
   unnecessary : Array Name
   /-- Whether any `@[tcb]` annotations exist in the module. -/
   hasAnnotations : Bool
+  deriving Repr
+
+instance : ToString AnnotationCheck where
+  toString ac :=
+    s!"AnnotationCheck(unannotated={ac.unannotated.size}, \
+      unnecessary={ac.unnecessary.size}, \
+      hasAnnotations={ac.hasAnnotations})"
 
 /-- Walk up a name's hierarchy collecting any tagged ancestors
     into `acc`. Structurally recursive on `Name`. -/

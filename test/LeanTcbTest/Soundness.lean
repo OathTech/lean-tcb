@@ -162,8 +162,8 @@ elab "#test_custom_axiom_in_tcb" : command => do
         (fun (n, _) => n == `customAxiom) do
       throwError "customAxiom should be in axioms"
     unless fr.axioms.any
-        (fun (n, isStd) =>
-          n == `customAxiom && !isStd) do
+        (fun (n, kind) =>
+          n == `customAxiom && kind == .nonStandard) do
       throwError "customAxiom should be non-standard"
     let rendered := renderResult fr
     unless (rendered.splitOn "NON-STANDARD").length
