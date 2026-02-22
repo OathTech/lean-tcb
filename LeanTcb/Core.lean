@@ -36,6 +36,7 @@ partial def computeTcb (env : Environment)
   let mut queue : Array Name := entryPoints
   let mut visited : Lean.NameSet := {}
   let mut specSet : Lean.NameSet := {}
+  let mut missingNames : Lean.NameSet := {}
 
   while h : queue.size > 0 do
     let name := queue[queue.size - 1]'(by omega)
@@ -45,8 +46,10 @@ partial def computeTcb (env : Environment)
       continue
     visited := visited.insert name
 
-    -- Skip names not found (internal / compiler-generated)
-    let some ci := env.find? name | continue
+    -- Track names not found in the environment
+    let some ci := env.find? name | do
+      missingNames := missingNames.insert name
+      continue
 
     specSet := specSet.insert name
 
@@ -57,13 +60,16 @@ partial def computeTcb (env : Environment)
     match ci with
     | .inductInfo v =>
       for ctorName in v.ctors do
-        if let some ctorCi := env.find? ctorName then
+        match env.find? ctorName with
+        | some ctorCi =>
           let ctorRefs := collectConstants #[ctorCi.type]
           for r in ctorRefs.toList do
             unless visited.contains r do
               queue := queue.push r
           specSet := specSet.insert ctorName
           visited := visited.insert ctorName
+        | none =>
+          missingNames := missingNames.insert ctorName
     | _ => pure ()
 
     for r in refs.toList do
@@ -85,6 +91,6 @@ partial def computeTcb (env : Environment)
       unless visited.contains comp do
         queue := queue.push comp
 
-  return { entryPoints, specSet }
+  return { entryPoints, specSet, missingNames }
 
 end LeanTcb

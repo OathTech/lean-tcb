@@ -109,6 +109,31 @@ elab "#test_structure" : command => do
 
 #test_structure
 
+-- Expr.proj: structure projections store the type name as a
+-- plain Name, not an Expr.const — collectConstants must capture it
+structure ProjStruct where
+  val : Nat
+
+def getProjVal (s : ProjStruct) : Nat := s.val
+
+theorem getProjVal_mk (n : Nat) : getProjVal ⟨n⟩ = n := rfl
+
+elab "#test_proj_captured" : command => do
+  let env ← getEnv
+  match computeTcb env #[`getProjVal_mk] with
+  | .ok result =>
+    unless result.specSet.contains `getProjVal_mk do
+      throwError "getProjVal_mk should be in spec"
+    unless result.specSet.contains `getProjVal do
+      throwError "getProjVal should be in spec"
+    unless result.specSet.contains `ProjStruct do
+      throwError "ProjStruct should be in spec \
+        (via Expr.proj typeName)"
+    logInfo "✓ Expr.proj typeName captured — PASS"
+  | .error msg => throwError msg
+
+#test_proj_captured
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests
 -- ═══════════════════════════════════════════════

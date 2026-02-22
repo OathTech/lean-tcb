@@ -19,6 +19,9 @@ structure TcbResult where
   entryPoints : Array Name
   /-- Declarations reachable via trust-relevant traversal. -/
   specSet : Lean.NameSet
+  /-- Names referenced during traversal but not found in the
+      environment. Non-empty results are suspicious. -/
+  missingNames : Lean.NameSet := {}
   deriving Inhabited
 
 end LeanTcb

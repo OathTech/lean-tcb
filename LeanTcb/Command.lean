@@ -40,7 +40,47 @@ def elabTcb : CommandElab := fun stx => do
       (init := (#[] : Array Name)) fun acc n _ =>
         if isCurrentModule env n then acc.push n else acc
 
-    let fr := formatResult env result allUserDecls
+    let mut fr := formatResult env result allUserDecls
+
+    -- Check entry points for sorry and native_decide
+    for ep in names do
+      let axs ← liftCoreM <| Lean.collectAxioms ep
+      if axs.contains `sorryAx then
+        let w := s!"'{ep}' depends on sorry \
+          (proof is incomplete)"
+        fr := { fr with
+          warnings := fr.warnings.push w }
+        logWarning m!"'{ep}' depends on sorry — \
+          proof is incomplete"
+      if axs.contains ``Lean.ofReduceBool ||
+          axs.contains ``Lean.ofReduceNat then
+        let w := s!"'{ep}' uses native_decide \
+          (the Lean compiler is in the trust path)"
+        fr := { fr with
+          warnings := fr.warnings.push w }
+        logWarning m!"'{ep}' uses native_decide — \
+          the Lean compiler is in the trust path"
+
+    -- Check for unsafe and partial definitions in the TCB
+    for name in result.specSet.toList do
+      if let some ci := env.find? name then
+        if ci.isUnsafe then
+          let w := s!"'{name}' is unsafe — the kernel \
+            provides weaker guarantees for this declaration"
+          fr := { fr with
+            warnings := fr.warnings.push w }
+          if isCurrentModule env name then
+            logWarning m!"'{name}' is unsafe — the \
+              kernel provides weaker guarantees"
+        if ci.isPartial then
+          let w := s!"'{name}' is partial — it may not \
+            terminate, which can affect soundness"
+          fr := { fr with
+            warnings := fr.warnings.push w }
+          if isCurrentModule env name then
+            logWarning m!"'{name}' is partial — it may \
+              not terminate"
+
     let userSpecNames := fr.userSpec.map (·.1)
     let annCheck :=
       checkAnnotations env userSpecNames allUserDecls

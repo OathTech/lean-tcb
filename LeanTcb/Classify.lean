@@ -39,10 +39,34 @@ def trustRelevantExprs (ci : ConstantInfo) : Array Expr :=
   | .recInfo v    => #[v.type]
   | .quotInfo v   => #[v.type]
 
-/-- Collect all constant names referenced in an array of expressions. -/
+/-- Recursively collect `Expr.proj` type names from an expression.
+    `Expr.proj typeName idx struct` stores the structure name as a
+    plain `Name` field — `foldConsts` misses it because it only
+    visits `Expr.const` nodes. -/
+private partial def collectProjTypeNames
+    (acc : Lean.NameSet) : Expr → Lean.NameSet
+  | .proj typeName _ e =>
+    collectProjTypeNames (acc.insert typeName) e
+  | .forallE _ d b _ =>
+    collectProjTypeNames (collectProjTypeNames acc d) b
+  | .lam _ d b _ =>
+    collectProjTypeNames (collectProjTypeNames acc d) b
+  | .mdata _ e => collectProjTypeNames acc e
+  | .letE _ t v b _ =>
+    collectProjTypeNames
+      (collectProjTypeNames (collectProjTypeNames acc t) v) b
+  | .app f a =>
+    collectProjTypeNames (collectProjTypeNames acc f) a
+  | _ => acc
+
+/-- Collect all constant names referenced in an array of expressions.
+    Captures both `Expr.const` names (via `foldConsts`) and
+    `Expr.proj` type names (via recursive traversal). -/
 def collectConstants (exprs : Array Expr) : Lean.NameSet :=
-  exprs.foldl (fun acc e =>
+  let acc := exprs.foldl (fun acc e =>
     e.foldConsts acc fun n s => s.insert n) {}
+  exprs.foldl (fun acc e =>
+    collectProjTypeNames acc e) acc
 
 /-- For a constructor, return its parent inductive name. -/
 def ctorParentName (ci : ConstantInfo) : Option Name :=
@@ -64,6 +88,8 @@ def mutualCompanions (env : Environment) (name : Name)
   | some (.defnInfo v)   =>
     if v.all.length > 1 then v.all.toArray else #[]
   | some (.thmInfo v)    =>
+    if v.all.length > 1 then v.all.toArray else #[]
+  | some (.opaqueInfo v) =>
     if v.all.length > 1 then v.all.toArray else #[]
   | some (.inductInfo v) =>
     if v.all.length > 1 then v.all.toArray else #[]

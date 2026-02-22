@@ -55,6 +55,8 @@ structure FormattedResult where
   librarySpec : Array Name
   /-- Current-module declarations NOT in the spec set. -/
   userNotInTcb : Nat
+  /-- Warnings about soundness issues (sorry, native_decide, etc.). -/
+  warnings : Array String := #[]
   deriving Inhabited
 
 /-- Format a `TcbResult` into categorized groups for display.
@@ -84,12 +86,20 @@ def formatResult (env : Environment) (result : TcbResult)
     unless result.specSet.contains name do
       userNotInTcb := userNotInTcb + 1
 
+  let mut warnings : Array String := #[]
+  for name in result.missingNames.toList do
+    warnings := warnings.push
+      s!"Name '{name}' was referenced but not found in \
+        the environment — its transitive dependencies are \
+        unknown and may be missing from this analysis"
+
   return {
     entryPoints := result.entryPoints
     axioms := axioms.qsort (fun a b => Name.lt a.1 b.1)
     userSpec := userSpec.qsort (fun a b => Name.lt a.1 b.1)
     librarySpec := librarySpec.qsort Name.lt
     userNotInTcb
+    warnings
   }
 
 /-- Render a formatted result as a string for the infoview.
@@ -167,6 +177,13 @@ def renderResult (fr : FormattedResult)
         lines := lines.push
           "  ✓ All annotations match the computed TCB"
       lines := lines.push ""
+
+  -- Warnings
+  if fr.warnings.size > 0 then
+    lines := lines.push "── Warnings ──"
+    for w in fr.warnings do
+      lines := lines.push s!"  ⚠ {w}"
+    lines := lines.push ""
 
   -- Summary
   let userTotal := fr.userSpec.size + fr.userNotInTcb
