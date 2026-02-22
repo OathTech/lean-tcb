@@ -96,9 +96,9 @@ elab "#test_user_vs_library" : command => do
   | .ok result =>
     let fr := formatResult env result
     -- myDouble and myPred should be in userSpec (defined in this module)
-    unless fr.userSpec.contains `myDouble do
+    unless fr.userSpec.any (·.1 == `myDouble) do
       throwError "myDouble should be in userSpec"
-    unless fr.userSpec.contains `myPred do
+    unless fr.userSpec.any (·.1 == `myPred) do
       throwError "myPred should be in userSpec"
     -- Nat should be in librarySpec (imported)
     unless fr.librarySpec.contains `Nat do
