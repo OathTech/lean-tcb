@@ -77,16 +77,11 @@ def checkAnnotations (env : Environment)
     }
 
   let mut unannotated : Array Name := #[]
+  let mut usedTags : Lean.NameSet := {}
   for name in userSpec do
     unless isTcbAnnotated env name do
       unannotated := unannotated.push name
-
-  -- A tag is "used" if it covers any spec member (directly
-  -- or as a parent prefix). Walk up each spec name's hierarchy
-  -- collecting which tags are providing coverage.
-  let mut usedTags : Lean.NameSet := {}
-  for specName in userSpec do
-    usedTags := collectUsedTags taggedNames specName usedTags
+    usedTags := collectUsedTags taggedNames name usedTags
 
   let mut unnecessary : Array Name := #[]
   for name in taggedNames do
