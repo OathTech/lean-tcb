@@ -155,6 +155,32 @@ elab "#test_path_render_entry_point" : command => do
 #test_path_render_entry_point
 
 -- ═══════════════════════════════════════════════
+-- Type vs body reason distinction in path (U3)
+-- ═══════════════════════════════════════════════
+
+elab "#test_path_type_vs_body_reason" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`pathTwoIsPrime] with
+  | .ok graph =>
+    -- Path to pathHasNontrivDivisor goes through
+    -- pathPrime (type ref) then pathHasNontrivDivisor
+    -- (body ref)
+    let output := renderPath env graph
+      `pathTwoIsPrime `pathHasNontrivDivisor
+    unless (output.splitOn "referenced in type").length
+        > 1 do
+      throwError s!"expected 'referenced in type' \
+        for pathPrime in path: {output}"
+    unless (output.splitOn "referenced in body").length
+        > 1 do
+      throwError s!"expected 'referenced in body' \
+        for pathHasNontrivDivisor in path: {output}"
+    logInfo "✓ path type vs body reason: PASS"
+  | .error msg => throwError msg
+
+#test_path_type_vs_body_reason
+
+-- ═══════════════════════════════════════════════
 -- Smoke test: #tcb_why command
 -- ═══════════════════════════════════════════════
 

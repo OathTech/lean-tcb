@@ -296,6 +296,52 @@ elab "#test_tree_auto_gen_collapse" : command => do
 #test_tree_auto_gen_collapse
 
 -- ═══════════════════════════════════════════════
+-- Type vs body reason distinction test (U3)
+-- ═══════════════════════════════════════════════
+
+elab "#test_tree_type_vs_body_reason" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`treeTwoIsPrime] with
+  | .ok graph =>
+    let output := renderTree env graph
+    -- treePrime is referenced in treeTwoIsPrime's TYPE
+    -- (theorem type = treePrime 2), so it should show
+    -- "referenced in type"
+    let lines := output.splitOn "\n"
+    let mut foundPrimeType := false
+    let mut foundHasNontrivBody := false
+    for line in lines do
+      -- treePrime line should say "referenced in type"
+      if (line.splitOn "treePrime").length > 1 then
+        -- Skip "see above" duplicates
+        unless (line.splitOn "see above").length > 1 do
+          unless (line.splitOn "referenced in type").length
+              > 1 do
+            throwError s!"treePrime should be \
+              'referenced in type': {line}"
+          foundPrimeType := true
+      -- treeHasNontrivDivisor is only in treePrime's BODY
+      -- (treePrime's type is Nat → Prop), so it should
+      -- show "referenced in body"
+      if (line.splitOn "treeHasNontrivDivisor").length
+          > 1 then
+        unless (line.splitOn "see above").length > 1 do
+          unless (line.splitOn "referenced in body").length
+              > 1 do
+            throwError s!"treeHasNontrivDivisor should \
+              be 'referenced in body': {line}"
+          foundHasNontrivBody := true
+    unless foundPrimeType do
+      throwError "did not find treePrime line in tree"
+    unless foundHasNontrivBody do
+      throwError "did not find treeHasNontrivDivisor \
+        line in tree"
+    logInfo "✓ tree type vs body reason: PASS"
+  | .error msg => throwError msg
+
+#test_tree_type_vs_body_reason
+
+-- ═══════════════════════════════════════════════
 -- Smoke tests: #tcb_tree commands
 -- ═══════════════════════════════════════════════
 
