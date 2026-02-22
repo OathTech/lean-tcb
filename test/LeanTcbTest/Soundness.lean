@@ -35,6 +35,26 @@ partial def partialFn (n : Nat) : Nat :=
 -- safe definition for comparison
 def safeDef (n : Nat) : Nat := n + 1
 
+-- Custom user axiom (non-standard)
+axiom customAxiom : Nat → Prop
+
+def usesCustomAxiom (n : Nat) : Prop := customAxiom n
+
+-- Proof exclusion breadth: helpers used ONLY in proofs
+def proofOnlyHelper1 : Nat := 99
+def proofOnlyHelper2 : Nat := 100
+
+theorem omegaProof : proofOnlyHelper1 > 0 := by decide
+
+theorem simpProof : 0 + 1 = 1 := by simp
+
+-- A theorem whose TYPE references nothing interesting
+-- but whose PROOF uses a complex helper
+def complexHelper (n : Nat) : n + 0 = n := by omega
+
+theorem termProof : True :=
+  (fun _ => trivial) (complexHelper 0)
+
 -- ═══════════════════════════════════════════════
 -- Tests
 -- ═══════════════════════════════════════════════
@@ -128,6 +148,66 @@ elab "#test_safe_no_warnings" : command => do
 
 #test_safe_no_warnings
 
+elab "#test_custom_axiom_in_tcb" : command => do
+  let env ← getEnv
+  match computeTcb env #[`usesCustomAxiom] with
+  | .ok result =>
+    unless result.specSet.contains `customAxiom do
+      throwError "customAxiom should be in specSet"
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+      if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    -- customAxiom should be in axioms, non-standard
+    unless fr.axioms.any
+        (fun (n, _) => n == `customAxiom) do
+      throwError "customAxiom should be in axioms"
+    unless fr.axioms.any
+        (fun (n, isStd) =>
+          n == `customAxiom && !isStd) do
+      throwError "customAxiom should be non-standard"
+    let rendered := renderResult fr
+    unless (rendered.splitOn "NON-STANDARD").length
+        > 1 do
+      throwError s!"expected NON-STANDARD in output: \
+        {rendered}"
+    logInfo "✓ custom axiom in TCB (non-standard) — PASS"
+  | .error msg => throwError msg
+
+#test_custom_axiom_in_tcb
+
+elab "#test_proof_exclusion_simp" : command => do
+  let env ← getEnv
+  match computeTcb env #[`simpProof] with
+  | .ok result =>
+    unless result.specSet.contains `simpProof do
+      throwError "simpProof should be in specSet"
+    -- Count project-local names: should be just simpProof
+    let mut userCount : Nat := 0
+    for name in result.specSet do
+      if isProjectLocal env name then
+        userCount := userCount + 1
+    unless userCount == 1 do
+      throwError s!"Expected 1 project-local name, \
+        got {userCount}"
+    logInfo "✓ proof exclusion (simp): PASS"
+  | .error msg => throwError msg
+
+#test_proof_exclusion_simp
+
+elab "#test_proof_exclusion_term_mode" : command => do
+  let env ← getEnv
+  match computeTcb env #[`termProof] with
+  | .ok result =>
+    -- complexHelper is only in the proof body, not type
+    if result.specSet.contains `complexHelper then
+      throwError "complexHelper should NOT be in \
+        specSet (only referenced in proof body)"
+    logInfo "✓ proof exclusion (term mode): PASS"
+  | .error msg => throwError msg
+
+#test_proof_exclusion_term_mode
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests — visual check in infoview
 -- ═══════════════════════════════════════════════
@@ -140,3 +220,9 @@ elab "#test_safe_no_warnings" : command => do
 
 -- Should show clean output
 #tcb soundThm
+
+-- Custom axiom (non-standard)
+#tcb usesCustomAxiom
+
+-- Proof exclusion
+#tcb termProof
