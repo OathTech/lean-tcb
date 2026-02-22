@@ -2,6 +2,7 @@ import Lake
 open Lake DSL
 
 package «lean-tcb» where
+  version := v!"0.1.0"
   leanOptions := #[
     ⟨`autoImplicit, false⟩
   ]
