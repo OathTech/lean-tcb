@@ -5,6 +5,8 @@ import Lean
 import LeanTcb.Core
 import LeanTcb.Format
 import LeanTcb.Attr
+import LeanTcb.Path
+import LeanTcb.Tree
 
 /-!
 # `#tcb` command elaborator
@@ -94,6 +96,51 @@ def elabTcb : CommandElab := fun stx => do
         logWarning m!"'{name}' is annotated @[tcb] but \
           not in the computed TCB"
 
+    logInfo m!"{output}"
+  | .error msg =>
+    throwError m!"TCB analysis failed: {msg}"
+
+/-- `#tcb_tree name₁ ...` renders the dependency graph as an
+    indented tree. `#tcb_tree!` expands library dependencies. -/
+syntax (name := tcbTreeCmd) "#tcb_tree" "!"? ident+ : command
+
+@[command_elab tcbTreeCmd]
+def elabTcbTree : CommandElab := fun stx => do
+  let expandLib := !stx[1].isNone
+  let ids := stx[2].getArgs
+  let env ← getEnv
+
+  let mut names : Array Name := #[]
+  for id in ids do
+    let name ← liftCoreM <|
+      realizeGlobalConstNoOverloadWithInfo id
+    names := names.push name
+
+  match computeTcbGraph env names with
+  | .ok graph =>
+    let opts : TreeRenderOpts := { expandLibrary := expandLib }
+    let output := renderTree env graph opts
+    logInfo m!"{output}"
+  | .error msg =>
+    throwError m!"TCB analysis failed: {msg}"
+
+/-- `#tcb_why entryPoint target` shows the dependency path
+    explaining why `target` is in the TCB of `entryPoint`. -/
+syntax (name := tcbWhyCmd) "#tcb_why" ident ident : command
+
+@[command_elab tcbWhyCmd]
+def elabTcbWhy : CommandElab := fun stx => do
+  let env ← getEnv
+  let epId := stx[1]
+  let tgtId := stx[2]
+  let epName ← liftCoreM <|
+    realizeGlobalConstNoOverloadWithInfo epId
+  let tgtName ← liftCoreM <|
+    realizeGlobalConstNoOverloadWithInfo tgtId
+
+  match computeTcbGraph env #[epName] with
+  | .ok graph =>
+    let output := renderPath env graph epName tgtName
     logInfo m!"{output}"
   | .error msg =>
     throwError m!"TCB analysis failed: {msg}"

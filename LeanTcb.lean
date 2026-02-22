@@ -7,6 +7,8 @@ import LeanTcb.Classify
 import LeanTcb.Core
 import LeanTcb.Attr
 import LeanTcb.Format
+import LeanTcb.Path
+import LeanTcb.Tree
 import LeanTcb.Command
 
 /-!
@@ -23,12 +25,18 @@ import LeanTcb
 
 #tcb myMainTheorem
 #tcb! myThm1 myThm2  -- verbose: includes library dependencies
+#tcb_tree myThm       -- dependency tree with library deps collapsed
+#tcb_tree! myThm      -- dependency tree with library deps expanded
+#tcb_why myThm myDef  -- why is myDef in the TCB of myThm?
 ```
 
 ## Main definitions
 
 - `LeanTcb.computeTcb`: the core worklist traversal
+- `LeanTcb.computeTcbGraph`: traversal with dependency provenance
 - `LeanTcb.tcbAttr`: the `@[tcb]` annotation attribute
 - `LeanTcb.formatResult`: output categorization
 - `LeanTcb.renderResult`: infoview rendering
+- `LeanTcb.renderTree`: dependency tree rendering
+- `LeanTcb.findPath` / `LeanTcb.renderPath`: path queries
 -/

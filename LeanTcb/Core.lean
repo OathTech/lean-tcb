@@ -93,4 +93,125 @@ partial def computeTcb (env : Environment)
 
   return { entryPoints, specSet, missingNames }
 
+/-- Compute the TCB with full dependency provenance.
+
+    Same worklist algorithm as `computeTcb` but additionally records,
+    for each discovered name, which parent enqueued it and why.
+    Entry points have no parent (not in `parentMap`). -/
+private def appendDep
+    (depsMap : Lean.NameMap (Array (Name × DepReason)))
+    (parent : Name) (child : Name) (reason : DepReason)
+    : Lean.NameMap (Array (Name × DepReason)) :=
+  let arr := match depsMap.find? parent with
+    | some a => a
+    | none   => #[]
+  depsMap.insert parent (arr.push (child, reason))
+
+partial def computeTcbGraph (env : Environment)
+    (entryPoints : Array Name)
+    : Except String TcbGraphResult := do
+  for ep in entryPoints do
+    unless env.contains ep do
+      throw s!"Entry point '{ep}' not found in environment"
+
+  let entrySet := entryPoints.foldl
+    (fun acc n => acc.insert n) ({} : Lean.NameSet)
+
+  let mut queue : Array Name := entryPoints
+  let mut visited : Lean.NameSet := {}
+  let mut specSet : Lean.NameSet := {}
+  let mut missingNames : Lean.NameSet := {}
+  let mut parentMap : Lean.NameMap (Name × DepReason) := {}
+  let mut depsMap :
+      Lean.NameMap (Array (Name × DepReason)) := {}
+
+  while h : queue.size > 0 do
+    let name := queue[queue.size - 1]'(by omega)
+    queue := queue.pop
+
+    if visited.contains name then
+      continue
+    visited := visited.insert name
+
+    let some ci := env.find? name | do
+      missingNames := missingNames.insert name
+      continue
+
+    specSet := specSet.insert name
+
+    let exprs := trustRelevantExprs ci
+    let refs := collectConstants exprs
+
+    -- For inductives: walk constructor types and add to spec
+    match ci with
+    | .inductInfo v =>
+      for ctorName in v.ctors do
+        match env.find? ctorName with
+        | some ctorCi =>
+          -- Record inductive as parent of its constructor
+          depsMap := appendDep depsMap name ctorName
+            .inductCtor
+          unless parentMap.contains ctorName ||
+              entrySet.contains ctorName do
+            parentMap := parentMap.insert ctorName
+              (name, .inductCtor)
+          let ctorRefs := collectConstants #[ctorCi.type]
+          for r in ctorRefs.toList do
+            depsMap := appendDep depsMap ctorName r
+              .exprRef
+            unless visited.contains r do
+              unless parentMap.contains r ||
+                  entrySet.contains r do
+                parentMap := parentMap.insert r
+                  (ctorName, .exprRef)
+              queue := queue.push r
+          specSet := specSet.insert ctorName
+          visited := visited.insert ctorName
+        | none =>
+          missingNames := missingNames.insert ctorName
+    | _ => pure ()
+
+    for r in refs.toList do
+      depsMap := appendDep depsMap name r .exprRef
+      unless visited.contains r do
+        unless parentMap.contains r ||
+            entrySet.contains r do
+          parentMap := parentMap.insert r (name, .exprRef)
+        queue := queue.push r
+
+    -- Constructor → parent inductive
+    if let some parent := ctorParentName ci then
+      depsMap := appendDep depsMap name parent .ctorParent
+      unless visited.contains parent do
+        unless parentMap.contains parent ||
+            entrySet.contains parent do
+          parentMap := parentMap.insert parent
+            (name, .ctorParent)
+        queue := queue.push parent
+
+    -- Recursor → parent inductives
+    for parent in recParentNames ci do
+      depsMap := appendDep depsMap name parent .recParent
+      unless visited.contains parent do
+        unless parentMap.contains parent ||
+            entrySet.contains parent do
+          parentMap := parentMap.insert parent
+            (name, .recParent)
+        queue := queue.push parent
+
+    -- Mutual blocks: enqueue all companions
+    for comp in mutualCompanions env name do
+      depsMap := appendDep depsMap name comp
+        .mutualCompanion
+      unless visited.contains comp do
+        unless parentMap.contains comp ||
+            entrySet.contains comp do
+          parentMap := parentMap.insert comp
+            (name, .mutualCompanion)
+        queue := queue.push comp
+
+  return {
+    entryPoints, specSet, missingNames, parentMap, depsMap
+  }
+
 end LeanTcb

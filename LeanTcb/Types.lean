@@ -24,4 +24,40 @@ structure TcbResult where
   missingNames : Lean.NameSet := {}
   deriving Inhabited
 
+/-- Why a dependency was enqueued during traversal. -/
+inductive DepReason where
+  | exprRef         -- referenced in trust-relevant expressions
+  | ctorParent      -- constructor enqueued parent inductive
+  | recParent       -- recursor enqueued parent inductive
+  | mutualCompanion -- mutual block companion
+  | inductCtor      -- inductive enqueued its constructor
+  deriving Inhabited, BEq
+
+/-- Human-readable label for a `DepReason`. -/
+def DepReason.label : DepReason → String
+  | .exprRef         => "referenced in type/body"
+  | .ctorParent      => "constructor enqueued parent inductive"
+  | .recParent       => "recursor enqueued parent inductive"
+  | .mutualCompanion => "mutual block companion"
+  | .inductCtor      => "inductive enqueued constructor"
+
+/-- TCB result with full dependency provenance. -/
+structure TcbGraphResult where
+  entryPoints : Array Name
+  specSet : Lean.NameSet
+  missingNames : Lean.NameSet := {}
+  /-- For each non-entry-point name: (parent, reason). -/
+  parentMap : Lean.NameMap (Name × DepReason)
+  /-- Forward adjacency: for each name, its direct children
+      (with reason) within the spec set. Used for tree rendering
+      to capture all edges, not just the discovery-tree edges
+      in `parentMap`. -/
+  depsMap : Lean.NameMap (Array (Name × DepReason)) := {}
+  deriving Inhabited
+
+def TcbGraphResult.toTcbResult (g : TcbGraphResult) : TcbResult :=
+  { entryPoints := g.entryPoints
+    specSet := g.specSet
+    missingNames := g.missingNames }
+
 end LeanTcb
