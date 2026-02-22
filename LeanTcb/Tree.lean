@@ -114,7 +114,7 @@ private partial def renderNode
   let allChildren :=
     if !opts.expandLibrary && libCount > 0 then
       projectChildren.push
-        (`_library_placeholder, .exprRef)
+        (`_leanTcb.libPlaceholder, .exprRef)
     else
       projectChildren
 
@@ -132,7 +132,7 @@ private partial def renderNode
   for i in [:allChildren.size] do
     let (child, r) := allChildren[i]!
     let childIsLast := i == allChildren.size - 1
-    if child == `_library_placeholder then
+    if child == `_leanTcb.libPlaceholder then
       let childConnector :=
         if childIsLast then "└── " else "├── "
       let depWord :=

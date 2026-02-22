@@ -42,8 +42,8 @@ def findPath (graph : TcbGraphResult) (target : Name)
         chain := chain.push (cur, none)
         -- Reverse to get entry point → target order
         return some chain.reverse
-    -- Exhausted fuel — shouldn't happen
-    return some (chain.push (cur, none)).reverse
+    -- Exhausted fuel — shouldn't happen in a well-formed graph
+    return none
 
 /-- Render a dependency path for the infoview. -/
 def renderPath (env : Environment) (graph : TcbGraphResult)

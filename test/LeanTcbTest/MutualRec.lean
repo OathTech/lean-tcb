@@ -175,12 +175,12 @@ elab "#test_tree_recursor_parent_reason" : command => do
     unless (output.splitOn "Color.rec").length > 1 do
       throwError s!"expected Color.rec in tree: {output}"
     -- With the prefer-specific-reason dedup, Color should
-    -- now show "recursor enqueued parent" under Color.rec
+    -- now show "recursor of this inductive" under Color.rec
     -- instead of the generic "referenced in type/body"
-    unless (output.splitOn "recursor enqueued parent").length
+    unless (output.splitOn "recursor of this inductive").length
         > 1 do
-      throwError s!"expected 'recursor enqueued parent' in \
-        tree: {output}"
+      throwError s!"expected 'recursor of this inductive' \
+        in tree: {output}"
     logInfo "✓ tree recursor parent reason: PASS"
   | .error msg => throwError msg
 

@@ -35,10 +35,10 @@ inductive DepReason where
 /-- Human-readable label for a `DepReason`. -/
 def DepReason.label : DepReason → String
   | .exprRef         => "referenced in type/body"
-  | .ctorParent      => "constructor enqueued parent inductive"
-  | .recParent       => "recursor enqueued parent inductive"
+  | .ctorParent      => "constructor of this inductive"
+  | .recParent       => "recursor of this inductive"
   | .mutualCompanion => "mutual block companion"
-  | .inductCtor      => "inductive enqueued constructor"
+  | .inductCtor      => "constructor type walked"
 
 /-- TCB result with full dependency provenance. -/
 structure TcbGraphResult where
@@ -47,8 +47,9 @@ structure TcbGraphResult where
   missingNames : Lean.NameSet := {}
   /-- For each non-entry-point name: (parent, reason). -/
   parentMap : Lean.NameMap (Name × DepReason)
-  /-- Forward adjacency: for each name, its direct children
-      (with reason) within the spec set. Used for tree rendering
+  /-- Forward adjacency: for each name, all direct children
+      discovered during traversal (with reason). May include
+      edges to names in `missingNames`. Used for tree rendering
       to capture all edges, not just the discovery-tree edges
       in `parentMap`. -/
   depsMap : Lean.NameMap (Array (Name × DepReason)) := {}
