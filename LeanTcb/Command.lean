@@ -44,44 +44,52 @@ def elabTcb : CommandElab := fun stx => do
 
     let mut fr := formatResult env result allUserDecls
 
-    -- Check entry points for sorry and native_decide
-    for ep in names do
-      let axs ← liftCoreM <| Lean.collectAxioms ep
-      if axs.contains `sorryAx then
-        let w := s!"'{ep}' depends on sorry \
-          (proof is incomplete)"
-        fr := { fr with
-          warnings := fr.warnings.push w }
-        logWarning m!"'{ep}' depends on sorry — \
-          proof is incomplete"
-      if axs.contains ``Lean.ofReduceBool ||
-          axs.contains ``Lean.ofReduceNat then
-        let w := s!"'{ep}' uses native_decide \
-          (the Lean compiler is in the trust path)"
-        fr := { fr with
-          warnings := fr.warnings.push w }
-        logWarning m!"'{ep}' uses native_decide — \
-          the Lean compiler is in the trust path"
+    -- Check all project-local TCB members for sorry and
+    -- native_decide (not just entry points)
+    let mut sorryWarned : Lean.NameSet := {}
+    let mut nativeWarned : Lean.NameSet := {}
+    for name in result.specSet.toList do
+      if isProjectLocal env name then
+        let axs ← liftCoreM <| Lean.collectAxioms name
+        if axs.contains `sorryAx then
+          unless sorryWarned.contains name do
+            sorryWarned := sorryWarned.insert name
+            let w := s!"'{name}' depends on sorry — \
+              proof is incomplete"
+            fr := { fr with
+              warnings := fr.warnings.push w }
+            logWarning m!"'{name}' depends on sorry — \
+              proof is incomplete"
+        if axs.contains ``Lean.ofReduceBool ||
+            axs.contains ``Lean.ofReduceNat then
+          unless nativeWarned.contains name do
+            nativeWarned := nativeWarned.insert name
+            let w := s!"'{name}' uses native_decide — \
+              the Lean compiler is in the trust path"
+            fr := { fr with
+              warnings := fr.warnings.push w }
+            logWarning m!"'{name}' uses native_decide — \
+              the Lean compiler is in the trust path"
 
-    -- Check for unsafe and partial definitions in the TCB
+    -- Check for unsafe definitions in the TCB
+    -- Note: `partial def` compiles to `opaqueInfo` in Lean
+    -- 4.27.0, so ConstantInfo.isPartial never fires. The
+    -- type-only traversal for opaqueInfo is already correct.
     for name in result.specSet.toList do
       if let some ci := env.find? name then
         if ci.isUnsafe then
           let w := s!"'{name}' is unsafe — the kernel \
-            provides weaker guarantees for this declaration"
+            provides weaker guarantees"
           fr := { fr with
             warnings := fr.warnings.push w }
           if isProjectLocal env name then
             logWarning m!"'{name}' is unsafe — the \
               kernel provides weaker guarantees"
-        if ci.isPartial then
-          let w := s!"'{name}' is partial — it may not \
-            terminate, which can affect soundness"
-          fr := { fr with
-            warnings := fr.warnings.push w }
-          if isProjectLocal env name then
-            logWarning m!"'{name}' is partial — it may \
-              not terminate"
+
+    -- Emit logWarning for missing names
+    for name in result.missingNames.toList do
+      logWarning m!"'{name}' was referenced but not \
+        found — transitive dependencies unknown"
 
     let userSpecNames := fr.userSpec.map (·.1)
     let annCheck :=

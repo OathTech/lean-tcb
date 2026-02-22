@@ -135,9 +135,11 @@ private partial def renderNode
     if child == `_library_placeholder then
       let childConnector :=
         if childIsLast then "└── " else "├── "
+      let depWord :=
+        if libCount == 1 then "dependency" else "dependencies"
       let libLine :=
         s!"{childIndent}{childConnector}\
-          [{libCount} library dependencies]"
+          [{libCount} library {depWord}]"
       lines := lines.push libLine
     else
       let (childLines, newSeen) := renderNode env

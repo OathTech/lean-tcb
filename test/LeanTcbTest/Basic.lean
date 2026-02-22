@@ -3,6 +3,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Mike Dodds -/
 import LeanTcb
 
+/-!
+# Basic TCB tests
+
+Tests for core reachability, def body walking, multiple entry points,
+unknown entry point handling, and user vs library classification.
+-/
+
 open Lean Elab Command LeanTcb
 
 -- ═══════════════════════════════════════════════

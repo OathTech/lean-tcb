@@ -3,6 +3,12 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Mike Dodds -/
 import LeanTcb
 
+/-!
+# Edge case tests
+
+Tests for abbrev, opaque, inductive, structure, and Expr.proj handling.
+-/
+
 open Lean Elab Command LeanTcb
 
 -- ═══════════════════════════════════════════════

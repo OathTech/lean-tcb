@@ -45,6 +45,17 @@ structure AnnotationCheck where
   /-- Whether any `@[tcb]` annotations exist in the module. -/
   hasAnnotations : Bool
 
+/-- Walk up a name's hierarchy collecting any tagged ancestors
+    into `acc`. Structurally recursive on `Name`. -/
+private def collectUsedTags (taggedNames : Lean.NameSet)
+    (name : Name) (acc : Lean.NameSet) : Lean.NameSet :=
+  let acc := if taggedNames.contains name
+    then acc.insert name else acc
+  match name with
+  | .str parent _ => collectUsedTags taggedNames parent acc
+  | .num parent _ => collectUsedTags taggedNames parent acc
+  | .anonymous => acc
+
 /-- Cross-check computed TCB against `@[tcb]` annotations.
     Only considers current-module declarations. -/
 def checkAnnotations (env : Environment)
@@ -62,17 +73,21 @@ def checkAnnotations (env : Environment)
       hasAnnotations := false
     }
 
-  let userSpecSet := userSpec.foldl
-    (fun acc n => acc.insert n) ({} : Lean.NameSet)
-
   let mut unannotated : Array Name := #[]
   for name in userSpec do
     unless isTcbAnnotated env name do
       unannotated := unannotated.push name
 
+  -- A tag is "used" if it covers any spec member (directly
+  -- or as a parent prefix). Walk up each spec name's hierarchy
+  -- collecting which tags are providing coverage.
+  let mut usedTags : Lean.NameSet := {}
+  for specName in userSpec do
+    usedTags := collectUsedTags taggedNames specName usedTags
+
   let mut unnecessary : Array Name := #[]
   for name in taggedNames.toList do
-    unless userSpecSet.contains name do
+    unless usedTags.contains name do
       unnecessary := unnecessary.push name
 
   return {

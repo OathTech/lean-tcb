@@ -124,8 +124,9 @@ def renderResult (fr : FormattedResult)
   lines := lines.push ""
 
   -- Entry points
-  let epNames := fr.entryPoints.map Name.toString
-  lines := lines.push s!"Entry points: {epNames}"
+  let epStr := String.intercalate ", "
+    (fr.entryPoints.map Name.toString).toList
+  lines := lines.push s!"Entry points: {epStr}"
   lines := lines.push ""
 
   -- Must review
@@ -173,13 +174,15 @@ def renderResult (fr : FormattedResult)
       if ac.unannotated.size > 0 then
         let n := ac.unannotated.size
         lines := lines.push
-          s!"  {n} in TCB but not annotated:"
+          s!"  {n} in TCB but not annotated \
+            (consider adding @[tcb]):"
         for name in ac.unannotated do
           lines := lines.push s!"    ⚠ {name}"
       if ac.unnecessary.size > 0 then
         let n := ac.unnecessary.size
         lines := lines.push
-          s!"  {n} annotated but not in TCB:"
+          s!"  {n} annotated but not in TCB \
+            (consider removing @[tcb]):"
         for name in ac.unnecessary do
           lines := lines.push s!"    ✗ {name}"
       if ac.unannotated.isEmpty && ac.unnecessary.isEmpty then
