@@ -181,14 +181,22 @@ everything else (kernel-verified, no trust needed).
 You can mark declarations you *expect* to be in the TCB:
 
 ```lean
+set_option tcb.checkAnnotations true
+
 @[tcb] def myDvd (a b : Nat) : Prop := ∃ k, b = a * k
 @[tcb] def myPrime (n : Nat) : Prop := ...
 ```
 
-When `#tcb` runs, it cross-checks the computed TCB against your annotations
-and warns about:
+Enable `set_option tcb.checkAnnotations true` to have `#tcb` cross-check
+the computed TCB against your annotations. It warns about:
 - Declarations in the TCB that you forgot to annotate
 - Stale `@[tcb]` annotations on declarations no longer in the TCB
+
+To enable project-wide, add to your `lakefile.lean`:
+
+```lean
+leanOptions := #[⟨`tcb.checkAnnotations, true⟩]
+```
 
 Annotating an `inductive` or `def` covers auto-generated companions
 (constructors, recursors, `.casesOn`, `.match_1`, etc.).

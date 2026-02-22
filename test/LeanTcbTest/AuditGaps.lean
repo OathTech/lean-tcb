@@ -16,6 +16,8 @@ and missing-names warning rendering.
 
 open Lean Elab Command LeanTcb
 
+set_option tcb.checkAnnotations true
+
 -- ═══════════════════════════════════════════════
 -- Fixtures
 -- ═══════════════════════════════════════════════

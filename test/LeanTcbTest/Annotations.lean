@@ -5,6 +5,8 @@ import LeanTcb
 
 open Lean Elab Command LeanTcb
 
+set_option tcb.checkAnnotations true
+
 /-!
 # Tests for `@[tcb]` annotation checking
 
