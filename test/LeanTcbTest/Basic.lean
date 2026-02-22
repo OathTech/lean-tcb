@@ -1,3 +1,6 @@
+/- Copyright (c) 2026 Mike Dodds. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Mike Dodds -/
 import LeanTcb
 
 open Lean Elab Command LeanTcb
@@ -94,7 +97,9 @@ elab "#test_user_vs_library" : command => do
   let env ← getEnv
   match computeTcb env #[`myDouble_pos] with
   | .ok result =>
-    let fr := formatResult env result
+    let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
+      if isCurrentModule env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
     -- myDouble and myPred should be in userSpec (defined in this module)
     unless fr.userSpec.any (·.1 == `myDouble) do
       throwError "myDouble should be in userSpec"

@@ -1,4 +1,3 @@
-.lake/
+/.lake
+/lakefile.olean
 .claude/
-lake-packages/
-build/

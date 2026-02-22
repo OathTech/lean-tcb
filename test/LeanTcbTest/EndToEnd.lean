@@ -1,3 +1,6 @@
+/- Copyright (c) 2026 Mike Dodds. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Mike Dodds -/
 import LeanTcb
 
 open Lean Elab Command LeanTcb
@@ -107,7 +110,9 @@ elab "#test_e2e_user_vs_library" : command => do
   let env ← getEnv
   match computeTcb env #[`two_is_prime] with
   | .ok result =>
-    let fr := formatResult env result
+    let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
+      if isCurrentModule env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
     -- User spec should contain our definitions + the theorem
     unless fr.userSpec.any (·.1 == `two_is_prime) do
       throwError "two_is_prime should be in userSpec"
@@ -129,14 +134,16 @@ elab "#test_e2e_counts" : command => do
   let env ← getEnv
   match computeTcb env #[`two_is_prime] with
   | .ok result =>
-    -- Sanity: spec should be much smaller than proof infrastructure
-    unless result.specSet.size < result.proofInfra.size do
-      throwError "spec should be much smaller than proof infra"
-    let fr := formatResult env result
+    -- Spec set should be small relative to the full environment
+    unless result.specSet.size < 200 do
+      throwError s!"spec set unexpectedly large: {result.specSet.size}"
+    let allUserDecls := env.constants.fold (init := (#[] : Array Name)) fun acc n _ =>
+      if isCurrentModule env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
     -- We expect a small user spec (definitions + theorem, no helpers)
     unless fr.userSpec.size ≤ 10 do
       throwError s!"user spec unexpectedly large: {fr.userSpec.size}"
-    logInfo s!"✓ e2e: {result.specSet.size} spec / {result.proofInfra.size} proof-infra — PASS"
+    logInfo s!"✓ e2e: {result.specSet.size} spec, {fr.userSpec.size} user — PASS"
   | .error msg => throwError msg
 
 #test_e2e_counts

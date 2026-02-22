@@ -1,25 +1,24 @@
+/- Copyright (c) 2026 Mike Dodds. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Mike Dodds -/
 import Lean
+
+/-!
+# TCB analysis types
+
+Core data types for the trust boundary classifier.
+-/
 
 open Lean
 
 namespace LeanTcb
 
-/-- How a declaration was classified. -/
-inductive Classification where
-  | /-- Must be believed correct by a human. -/
-    specification
-  | /-- Kernel-verified; need not be trusted. -/
-    proofInfrastructure
-  deriving Inhabited, BEq, Repr
-
 /-- Result of the TCB analysis for a single entry-point set. -/
 structure TcbResult where
   /-- The entry-point theorem names that seeded the analysis. -/
   entryPoints : Array Name
-  /-- All declarations reachable in the trust-relevant traversal (the spec set). -/
+  /-- Declarations reachable via trust-relevant traversal. -/
   specSet : Lean.NameSet
-  /-- All declarations in the environment that are NOT in the spec set. -/
-  proofInfra : Lean.NameSet
   deriving Inhabited
 
 end LeanTcb
