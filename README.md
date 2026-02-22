@@ -7,18 +7,42 @@
 
 Trusted Computing Base analyzer for Lean 4.
 
-When you prove a theorem in Lean, the kernel checks the proof — but the
-*statement* still depends on definitions you wrote.  `lean-tcb` computes
-exactly which declarations must be trusted for a given theorem to mean
-what you think it means.
+## Why?
+
+Lean's kernel checks that proofs are correct — but it can't check that your
+*definitions* mean what you think they mean. If your definition of `prime`
+accidentally allows 1, your "proof" that 2 is prime is technically valid but
+meaningless.
+
+`lean-tcb` answers the question: **which declarations must a human review
+to trust that a theorem says what it claims?** It computes the transitive
+closure of trust-relevant dependencies, separating the definitions that give
+a theorem its meaning from the proof infrastructure that the kernel verifies.
+
+This is useful for:
+- **Auditing formal proofs** — know exactly which definitions to review
+  instead of reading the entire codebase
+- **Tracking specification drift** — catch when refactoring changes what
+  a theorem depends on
+- **Understanding proof architecture** — see why a particular definition
+  ended up in your trust boundary
 
 ## Installation
 
-Add `lean-tcb` as a dependency in your `lakefile.lean`:
+Add `lean-tcb` as a dependency in your lakefile.
 
+`lakefile.lean`:
 ```lean
 require «lean-tcb» from git
   "https://github.com/OathTech/lean-tcb" @ "main"
+```
+
+`lakefile.toml`:
+```toml
+[[require]]
+name = "lean-tcb"
+scope = "OathTech"
+rev = "main"
 ```
 
 Then run `lake update lean-tcb`.
@@ -39,15 +63,38 @@ theorem two_is_prime : myPrime 2 := by
 #tcb two_is_prime
 ```
 
-Hover over `#tcb` in the infoview to see the analysis:
+Hover over `#tcb` in the infoview to see:
 
-- **Must Review** — your declarations that the theorem's meaning depends on
-- **Axioms** — which axioms are in scope (standard vs non-standard)
-- **Summary** — how much of your project is in the TCB vs not
+```
+═══ TCB Analysis ═══
 
-Use `#tcb!` for verbose output that includes library dependencies.
+Entry points: #[two_is_prime]
 
-### Dependency tree
+── Must Review (3 declarations) ──
+  • myDvd          def
+  • myPrime        def
+  • two_is_prime   theorem
+
+── Axioms ──
+  none
+
+── Summary ──
+  Must review:    3 declarations (75% of project)
+  Not in TCB:     1 declarations
+  Depends on:     36 library declarations
+```
+
+The tool found that `two_is_prime`'s meaning depends on `myPrime` and `myDvd`
+(which define what "prime" and "divides" mean), but not on any helper lemmas
+used only in the proof. A reviewer needs to check these two definitions to
+trust the theorem statement.
+
+Use `#tcb!` for verbose output that includes the full list of library
+dependencies (Nat, And, Exists, etc.).
+
+You can analyze multiple entry points at once: `#tcb theorem1 theorem2`.
+
+## Dependency tree
 
 `#tcb_tree` renders the full dependency graph as an indented tree:
 
@@ -66,14 +113,13 @@ two_is_prime [theorem]
 └── [3 library dependencies]
 ```
 
-Library dependencies are collapsed by default. Use `#tcb_tree!` to expand them.
+Library dependencies are collapsed by default. Use `#tcb_tree!` to expand
+them. Each edge is labeled with why the dependency exists — structural
+reasons like "mutual block companion" or "recursor enqueued parent inductive"
+are shown where applicable. Already-rendered nodes show `(see above)` to
+handle diamond dependencies.
 
-Structural reasons like "mutual block companion", "recursor enqueued parent
-inductive", and "constructor enqueued parent inductive" are shown instead of
-generic "referenced in type/body" where applicable. Already-rendered nodes
-show `(see above)` with the edge reason preserved.
-
-### Path query
+## Path query
 
 `#tcb_why` explains why a specific declaration is in the TCB:
 
@@ -89,6 +135,20 @@ show `(see above)` with the edge reason preserved.
   → myDvd [def] ← referenced in type/body
 ```
 
+If the target is not in the TCB, the tool says so — useful for confirming
+that helper lemmas are correctly excluded.
+
+## Warnings
+
+The tool detects and warns about soundness-relevant issues in the TCB:
+
+- **sorry** — proofs that are incomplete (`depends on sorry`)
+- **native_decide** — proofs that trust the Lean compiler
+- **unsafe** — declarations with weaker kernel guarantees
+
+These warnings appear both inline (as Lean warnings) and in the `#tcb`
+output.
+
 ## How it works
 
 Starting from a theorem's type, `lean-tcb` does a worklist traversal of
@@ -102,9 +162,19 @@ trust-relevant dependencies:
 | `opaque`         | type only              |
 | `inductive`      | type + constructor types |
 
+The key insight: for a `def`, the body *is* the specification — it defines
+what the name means. For a `theorem`, only the type matters — the proof is
+kernel-checked and doesn't affect meaning. This is why helper lemmas used
+in proofs are excluded from the TCB while definitions are included.
+
+The traversal also handles:
+- **Constructor → parent inductive** linkage
+- **Recursor → parent inductive** linkage
+- **Mutual blocks** — all companions are included together
+- **`Expr.proj`** — structure projection type names (missed by `foldConsts`)
+
 The result partitions the environment into a **spec set** (must review) and
-everything else (kernel-verified, no trust needed). Helper lemmas used only
-in proofs are excluded from the TCB.
+everything else (kernel-verified, no trust needed).
 
 ## `@[tcb]` annotations
 
@@ -122,6 +192,30 @@ and warns about:
 
 Annotating an `inductive` or `def` covers auto-generated companions
 (constructors, recursors, `.casesOn`, `.match_1`, etc.).
+
+## Command reference
+
+| Command | Description |
+|---------|-------------|
+| `#tcb name₁ name₂ ...` | Analyze the TCB for given entry points |
+| `#tcb! name₁ ...` | Same, with full library dependency listing |
+| `#tcb_tree name₁ ...` | Render dependency tree (library collapsed) |
+| `#tcb_tree! name₁ ...` | Render dependency tree (library expanded) |
+| `#tcb_why entry target` | Show why `target` is in the TCB of `entry` |
+
+## Limitations
+
+- **Over-approximation by design.** Walking `def` bodies collects all
+  referenced constants, including proof sub-terms like decidability
+  witnesses. This means the TCB may be larger than strictly necessary,
+  but it never misses a real dependency.
+- **Theorem proofs are skipped.** This means `sorry` is not detected
+  through traversal (use `#tcb` warnings for that). By design: the tool
+  answers "what must a human trust?" not "is the proof complete?"
+- **Elaborator inlining.** Lean may inline type class instances or
+  coercions at elaboration time. The tool sees the inlined expression,
+  so instance *names* may not appear in the TCB even though their
+  *bodies* are captured. This is sound but can be surprising.
 
 ## Requirements
 
