@@ -132,6 +132,44 @@ elab "#test_num_branch_coverage" : command => do
 #test_num_branch_coverage
 
 -- ═══════════════════════════════════════════════
+-- Additional fixtures
+-- ═══════════════════════════════════════════════
+
+-- Mid-hierarchy annotation: annotate a def, check
+-- its auto-generated children are covered
+@[tcb] def annMidLevel (n : Nat) : Nat :=
+  match n with
+  | 0 => 0
+  | k + 1 => k
+
+-- ═══════════════════════════════════════════════
+-- Additional tests
+-- ═══════════════════════════════════════════════
+
+elab "#test_ann_mid_hierarchy_coverage" : command => do
+  let env ← getEnv
+  match computeTcb env #[`annMidLevel] with
+  | .ok result =>
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+      if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let userSpecNames := fr.userSpec.map (·.1)
+    let ac := checkAnnotations env userSpecNames
+      allUserDecls
+    -- Auto-generated children (annMidLevel.*) in the
+    -- TCB should be covered by @[tcb] on annMidLevel
+    for name in userSpecNames do
+      if name.getPrefix == `annMidLevel then
+        if ac.unannotated.any (· == name) then
+          throwError s!"{name} should be covered by \
+            @[tcb] on annMidLevel"
+    logInfo "✓ mid-hierarchy annotation coverage: PASS"
+  | .error msg => throwError msg
+
+#test_ann_mid_hierarchy_coverage
+
+-- ═══════════════════════════════════════════════
 -- Smoke tests — visual check in infoview
 -- ═══════════════════════════════════════════════
 
@@ -140,3 +178,6 @@ elab "#test_num_branch_coverage" : command => do
 
 -- This should show clean annotations (everything matched)
 #tcb annColorThm
+
+-- Mid-hierarchy annotation
+#tcb annMidLevel

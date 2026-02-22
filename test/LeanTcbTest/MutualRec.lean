@@ -55,6 +55,15 @@ def colorToNat : Color → Nat
   | .blue => 2
 
 -- ═══════════════════════════════════════════════
+-- Fixtures: mutual theorem block
+-- ═══════════════════════════════════════════════
+
+mutual
+  theorem mt1 : 1 + 1 = 2 := rfl
+  theorem mt2 : 2 + 1 = 3 := rfl
+end
+
+-- ═══════════════════════════════════════════════
 -- Tests
 -- ═══════════════════════════════════════════════
 
@@ -219,6 +228,34 @@ elab "#test_why_mutual_companion" : command => do
 
 #test_why_mutual_companion
 
+elab "#test_mutual_theorem_companions" : command => do
+  let env ← getEnv
+  -- Check whether Lean created a true mutual block
+  let some ci := env.find? `mt1
+    | throwError "mt1 not found in environment"
+  match ci with
+  | .thmInfo v =>
+    if v.all.length > 1 then
+      -- True mutual block: mt2 should be a companion
+      match computeTcb env #[`mt1] with
+      | .ok result =>
+        unless result.specSet.contains `mt1 do
+          throwError "mt1 should be in specSet"
+        unless result.specSet.contains `mt2 do
+          throwError "mt2 should be in specSet \
+            (mutual companion)"
+        logInfo "✓ mutual theorem companions: PASS"
+      | .error msg => throwError msg
+    else
+      -- Lean optimized into independent blocks
+      logInfo "✓ mutual theorem companions: PASS \
+        (elaborator split into independent blocks, \
+        v.all.length == 1)"
+  | _ =>
+    throwError "mt1 should be a theorem"
+
+#test_mutual_theorem_companions
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests
 -- ═══════════════════════════════════════════════
@@ -230,3 +267,4 @@ elab "#test_why_mutual_companion" : command => do
 #tcb_tree colorToNat
 #tcb_why useEven mOdd
 #tcb_why colorToNat Color
+#tcb mt1

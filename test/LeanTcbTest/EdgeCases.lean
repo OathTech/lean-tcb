@@ -141,8 +141,94 @@ elab "#test_proj_captured" : command => do
 #test_proj_captured
 
 -- ═══════════════════════════════════════════════
+-- Additional fixtures
+-- ═══════════════════════════════════════════════
+
+-- Private declaration in TCB
+private def edgePrivateImpl : Nat := 42
+def edgeUsesPrivate : Nat := edgePrivateImpl + 1
+
+-- Deep dependency chain (10 levels)
+def chain0 : Nat := 0
+def chain1 : Nat := chain0 + 1
+def chain2 : Nat := chain1 + 1
+def chain3 : Nat := chain2 + 1
+def chain4 : Nat := chain3 + 1
+def chain5 : Nat := chain4 + 1
+def chain6 : Nat := chain5 + 1
+def chain7 : Nat := chain6 + 1
+def chain8 : Nat := chain7 + 1
+def chain9 : Nat := chain8 + 1
+
+-- ═══════════════════════════════════════════════
+-- Additional tests
+-- ═══════════════════════════════════════════════
+
+elab "#test_private_in_tcb" : command => do
+  let env ← getEnv
+  match computeTcb env #[`edgeUsesPrivate] with
+  | .ok result =>
+    -- Private name is mangled; find it by substring
+    let mut foundInSpec := false
+    for name in result.specSet do
+      let s := toString name
+      if (s.splitOn "edgePrivateImpl").length > 1 then
+        foundInSpec := true
+    unless foundInSpec do
+      throwError "edgePrivateImpl should be in specSet"
+    -- Also verify it appears in formatted userSpec
+    let allUserDecls := env.constants.fold
+      (init := (#[] : Array Name)) fun acc n _ =>
+      if isProjectLocal env n then acc.push n else acc
+    let fr := formatResult env result allUserDecls
+    let mut foundInUserSpec := false
+    for (name, _) in fr.userSpec do
+      let s := toString name
+      if (s.splitOn "edgePrivateImpl").length > 1 then
+        foundInUserSpec := true
+    unless foundInUserSpec do
+      throwError "edgePrivateImpl should be in userSpec"
+    logInfo "✓ private def in TCB: PASS"
+  | .error msg => throwError msg
+
+#test_private_in_tcb
+
+elab "#test_deep_chain" : command => do
+  let env ← getEnv
+  match computeTcb env #[`chain9] with
+  | .ok result =>
+    for name in #[`chain0, `chain1, `chain2, `chain3,
+        `chain4, `chain5, `chain6, `chain7, `chain8,
+        `chain9] do
+      unless result.specSet.contains name do
+        throwError s!"{name} should be in specSet"
+    logInfo "✓ deep chain (10 levels): PASS"
+  | .error msg => throwError msg
+
+#test_deep_chain
+
+elab "#test_deep_chain_tree" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`chain9] with
+  | .ok graph =>
+    let output := renderTree env graph
+    unless (output.splitOn "chain0").length > 1 do
+      throwError "expected chain0 (leaf) in tree"
+    -- Non-trivial depth: should have box-drawing chars
+    unless (output.splitOn "├──").length > 1
+        || (output.splitOn "└──").length > 1 do
+      throwError s!"expected box-drawing chars: {output}"
+    logInfo "✓ deep chain tree rendering: PASS"
+  | .error msg => throwError msg
+
+#test_deep_chain_tree
+
+-- ═══════════════════════════════════════════════
 -- Smoke tests
 -- ═══════════════════════════════════════════════
 
 #tcb myLength_nil
 #tcb mkPair_fst
+#tcb edgeUsesPrivate
+#tcb_tree chain9
+#tcb_why chain9 chain0

@@ -180,9 +180,82 @@ elab "#test_tree_cross_entry_dedup" : command => do
 #test_tree_cross_entry_dedup
 
 -- ═══════════════════════════════════════════════
+-- Fixtures: sibling sort and zero-library tests
+-- ═══════════════════════════════════════════════
+
+def treeAlpha : Nat := 1
+def treeBeta : Nat := 2
+def treeGamma : Nat := 3
+def treeMultiChild : Nat :=
+  treeAlpha + treeBeta + treeGamma
+
+-- ═══════════════════════════════════════════════
+-- Additional tests
+-- ═══════════════════════════════════════════════
+
+elab "#test_tree_all_siblings_sorted" : command => do
+  let env ← getEnv
+  match computeTcbGraph env #[`treeMultiChild] with
+  | .ok graph =>
+    let output := renderTree env graph
+    let lines := output.splitOn "\n"
+    let mut alphaIdx : Option Nat := none
+    let mut betaIdx : Option Nat := none
+    let mut gammaIdx : Option Nat := none
+    for i in [:lines.length] do
+      let line := lines[i]!
+      if (line.splitOn "treeAlpha").length > 1
+          && alphaIdx.isNone then
+        alphaIdx := some i
+      if (line.splitOn "treeBeta").length > 1
+          && betaIdx.isNone then
+        betaIdx := some i
+      if (line.splitOn "treeGamma").length > 1
+          && gammaIdx.isNone then
+        gammaIdx := some i
+    match alphaIdx, betaIdx, gammaIdx with
+    | some ai, some bi, some gi =>
+      unless ai < bi do
+        throwError s!"treeAlpha (line {ai}) should \
+          appear before treeBeta (line {bi})"
+      unless bi < gi do
+        throwError s!"treeBeta (line {bi}) should \
+          appear before treeGamma (line {gi})"
+      logInfo "✓ tree all siblings sorted: PASS"
+    | _, _, _ =>
+      throwError "expected all three children in tree"
+  | .error msg => throwError msg
+
+#test_tree_all_siblings_sorted
+
+elab "#test_tree_zero_library_rendering" : command => do
+  let env ← getEnv
+  -- Synthetic graph with only a project-local entry point
+  -- and no children at all
+  let syntheticGraph : TcbGraphResult := {
+    entryPoints := #[`treeAlpha]
+    specSet := ({} : Lean.NameSet).insert `treeAlpha
+    parentMap := {}
+    depsMap := {}
+  }
+  let output := renderTree env syntheticGraph
+  if (output.splitOn "library dependencies").length
+      > 1 then
+    throwError s!"should not contain \
+      'library dependencies': {output}"
+  if (output.splitOn "library dependency").length
+      > 1 then
+    throwError s!"should not contain \
+      'library dependency': {output}"
+  logInfo "✓ tree zero library rendering: PASS"
+
+#test_tree_zero_library_rendering
+
+-- ═══════════════════════════════════════════════
 -- Smoke tests: #tcb_tree commands
 -- ═══════════════════════════════════════════════
 
 #tcb_tree treeTwoIsPrime
 #tcb_tree! treeTwoIsPrime
 #tcb_tree treeCompositeThm
+#tcb_tree treeMultiChild
