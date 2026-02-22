@@ -19,6 +19,9 @@ namespace LeanTcb
     of the trusted computing base. When `#tcb` runs, it cross-checks
     the computed spec set against these annotations and warns about
     mismatches. -/
+-- Note: bare name `tcb` could collide with other libraries.
+-- A namespaced name like `lean_tcb` would be safer but is a
+-- breaking change. Deferred until an actual collision occurs.
 initialize tcbAttr : TagAttribute ←
   registerTagAttribute `tcb
     "Marks a declaration as an expected TCB member."
@@ -86,7 +89,7 @@ def checkAnnotations (env : Environment)
     usedTags := collectUsedTags taggedNames specName usedTags
 
   let mut unnecessary : Array Name := #[]
-  for name in taggedNames.toList do
+  for name in taggedNames do
     unless usedTags.contains name do
       unnecessary := unnecessary.push name
 

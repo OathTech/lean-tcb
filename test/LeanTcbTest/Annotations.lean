@@ -116,6 +116,21 @@ elab "#test_ann_inductive_coverage" : command => do
 
 #test_ann_inductive_coverage
 
+-- M8: .num branch in isTcbAnnotated
+elab "#test_num_branch_coverage" : command => do
+  let env ← getEnv
+  -- Construct a synthetic .num name under @[tcb] annDvd
+  let numName := Name.num `annDvd 42
+  unless isTcbAnnotated env numName do
+    throwError "isTcbAnnotated should cover .num children \
+      of @[tcb] names"
+  -- Negative: .num under non-annotated name
+  if isTcbAnnotated env (Name.num `annHelper 1) then
+    throwError "should NOT cover .num under non-annotated"
+  logInfo "✓ .num branch coverage: PASS"
+
+#test_num_branch_coverage
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests — visual check in infoview
 -- ═══════════════════════════════════════════════

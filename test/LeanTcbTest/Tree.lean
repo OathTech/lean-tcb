@@ -160,6 +160,25 @@ elab "#test_tree_children_sorted" : command => do
 
 #test_tree_children_sorted
 
+-- M6: Shared dependency across entry points shows (see above)
+def treeSharedDep (n : Nat) : Nat := n + 1
+theorem treeSharedThm1 : treeSharedDep 0 = 1 := rfl
+theorem treeSharedThm2 : treeSharedDep 1 = 2 := rfl
+
+elab "#test_tree_cross_entry_dedup" : command => do
+  let env ← getEnv
+  match computeTcbGraph env
+      #[`treeSharedThm1, `treeSharedThm2] with
+  | .ok graph =>
+    let output := renderTree env graph
+    unless (output.splitOn "see above").length > 1 do
+      throwError s!"expected '(see above)' for cross-entry \
+        dedup: {output}"
+    logInfo "✓ tree cross-entry dedup: PASS"
+  | .error msg => throwError msg
+
+#test_tree_cross_entry_dedup
+
 -- ═══════════════════════════════════════════════
 -- Smoke tests: #tcb_tree commands
 -- ═══════════════════════════════════════════════

@@ -19,6 +19,14 @@ open Lean Elab Command Meta
 
 namespace LeanTcb
 
+/-- Emit a warning if Lake package info is unavailable. -/
+private def warnIfNoPackageInfo : CommandElabM Unit := do
+  let env ← getEnv
+  if env.getModulePackage?.isNone then
+    logWarning m!"Package info unavailable (non-Lake \
+      build?) — all imported declarations classified as \
+      'library'. Project-local results may be incomplete."
+
 /-- `#tcb name₁ name₂ ...` analyses the trust boundary for the
     given entry points.
     `#tcb! name₁ ...` includes full library dependency listing. -/
@@ -29,6 +37,7 @@ def elabTcb : CommandElab := fun stx => do
   let verbose := !stx[1].isNone
   let ids := stx[2].getArgs
   let env ← getEnv
+  warnIfNoPackageInfo
 
   let mut names : Array Name := #[]
   for id in ids do
@@ -48,7 +57,7 @@ def elabTcb : CommandElab := fun stx => do
     -- native_decide (not just entry points)
     let mut sorryWarned : Lean.NameSet := {}
     let mut nativeWarned : Lean.NameSet := {}
-    for name in result.specSet.toList do
+    for name in result.specSet do
       if isProjectLocal env name then
         let axs ← liftCoreM <| Lean.collectAxioms name
         if axs.contains `sorryAx then
@@ -75,7 +84,7 @@ def elabTcb : CommandElab := fun stx => do
     -- Note: `partial def` compiles to `opaqueInfo` in Lean
     -- 4.27.0, so ConstantInfo.isPartial never fires. The
     -- type-only traversal for opaqueInfo is already correct.
-    for name in result.specSet.toList do
+    for name in result.specSet do
       if let some ci := env.find? name then
         if ci.isUnsafe then
           let w := s!"'{name}' is unsafe — the kernel \
@@ -87,7 +96,7 @@ def elabTcb : CommandElab := fun stx => do
               kernel provides weaker guarantees"
 
     -- Emit logWarning for missing names
-    for name in result.missingNames.toList do
+    for name in result.missingNames do
       logWarning m!"'{name}' was referenced but not \
         found — transitive dependencies unknown"
 
@@ -117,6 +126,7 @@ def elabTcbTree : CommandElab := fun stx => do
   let expandLib := !stx[1].isNone
   let ids := stx[2].getArgs
   let env ← getEnv
+  warnIfNoPackageInfo
 
   let mut names : Array Name := #[]
   for id in ids do
@@ -139,6 +149,7 @@ syntax (name := tcbWhyCmd) "#tcb_why" ident ident : command
 @[command_elab tcbWhyCmd]
 def elabTcbWhy : CommandElab := fun stx => do
   let env ← getEnv
+  warnIfNoPackageInfo
   let epId := stx[1]
   let tgtId := stx[2]
   let epName ← liftCoreM <|
