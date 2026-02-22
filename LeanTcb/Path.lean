@@ -75,6 +75,10 @@ def renderPath (env : Environment) (graph : TcbGraphResult)
       | some r =>
         lines := lines.push
           s!"  → {name}{kindStr} ← {r.label}"
+    -- Discoverability tip
+    lines := lines.push ""
+    lines := lines.push
+      "Tip: #tcb_tree for the full dependency graph"
     return String.intercalate "\n" lines.toList
 
 end LeanTcb

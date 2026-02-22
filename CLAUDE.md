@@ -33,7 +33,7 @@ The key insight: for `def`s, the body IS the specification (it defines meaning).
 4. **Attr.lean** — `@[tcb]` tag attribute via `registerTagAttribute`; `isTcbAnnotated` walks parent names for coverage; `checkAnnotations` cross-checks computed vs declared TCB
 5. **Format.lean** — `formatResult` categorizes into axioms/userSpec/librarySpec using `env.getModuleIdxFor?` (returns `none` for current-module declarations); `renderResult` produces the infoview string
 6. **Path.lean** — `findPath` walks `parentMap` backwards from target to entry point; `renderPath` formats the chain for `#tcb_why`
-7. **Tree.lean** — `renderTree` renders `TcbGraphResult` as an indented tree (like Unix `tree`). Supports DAG dedup (`(see above)`), library collapsing, and prefers structural dependency reasons (`recParent`, `mutualCompanion`) over generic `exprRef` in labels
+7. **Tree.lean** — `renderTree` renders `TcbGraphResult` as an indented tree (like Unix `tree`). Supports DAG dedup (`(see above)`), library collapsing, auto-generated collapsing, and prefers structural dependency reasons (`recParent`, `mutualCompanion`) over generic `exprRefType`/`exprRefBody` in labels
 8. **Command.lean** — `#tcb`/`#tcb!`, `#tcb_tree`/`#tcb_tree!`, `#tcb_why` syntax and elaborators; resolves names, runs pipeline, emits warnings for annotation mismatches
 
 ### Test infrastructure

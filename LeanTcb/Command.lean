@@ -69,6 +69,9 @@ private def emitSoundnessWarnings (env : Environment)
           logWarning m!"'{name}' is unsafe — the \
             kernel provides weaker guarantees"
   for name in missingNames do
+    warnings := warnings.push
+      s!"'{name}' was referenced but not found — \
+        transitive dependencies unknown"
     logWarning m!"'{name}' was referenced but not \
       found — transitive dependencies unknown"
   return warnings
@@ -110,7 +113,7 @@ def elabTcb : CommandElab := fun stx => do
         some (checkAnnotations env userSpecNames allUserDecls)
       else
         none
-    let output := renderResult fr verbose annCheck
+    let output := renderResult fr verbose annCheck (some env)
 
     if let some ac := annCheck then
       if ac.hasAnnotations then

@@ -58,8 +58,18 @@ partial def computeTcbGraph (env : Environment)
 
     specSet := specSet.insert name
 
-    let exprs := trustRelevantExprs ci
-    let refs := collectConstants exprs
+    -- Compute refs with type/body distinction
+    let typeRefs : Lean.NameSet := match ci with
+      | .defnInfo v => collectConstants #[v.type]
+      | _ => collectConstants (trustRelevantExprs ci)
+    let mut bodyOnlyRefs : Lean.NameSet := {}
+    match ci with
+    | .defnInfo v =>
+      let bodyRefs := collectConstants #[v.value]
+      for n in bodyRefs do
+        unless typeRefs.contains n do
+          bodyOnlyRefs := bodyOnlyRefs.insert n
+    | _ => pure ()
 
     -- For inductives: walk constructor types and add to spec
     match ci with
@@ -77,12 +87,12 @@ partial def computeTcbGraph (env : Environment)
           let ctorRefs := collectConstants #[ctorCi.type]
           for r in ctorRefs do
             edgeList := edgeList.push (ctorName, r,
-              .exprRef)
+              .exprRefType)
             unless visited.contains r do
               unless parentMap.contains r ||
                   entrySet.contains r do
                 parentMap := parentMap.insert r
-                  (ctorName, .exprRef)
+                  (ctorName, .exprRefType)
               queue := queue.push r
           specSet := specSet.insert ctorName
           visited := visited.insert ctorName
@@ -90,12 +100,22 @@ partial def computeTcbGraph (env : Environment)
           missingNames := missingNames.insert ctorName
     | _ => pure ()
 
-    for r in refs do
-      edgeList := edgeList.push (name, r, .exprRef)
+    for r in typeRefs do
+      edgeList := edgeList.push (name, r, .exprRefType)
       unless visited.contains r do
         unless parentMap.contains r ||
             entrySet.contains r do
-          parentMap := parentMap.insert r (name, .exprRef)
+          parentMap := parentMap.insert r
+            (name, .exprRefType)
+        queue := queue.push r
+
+    for r in bodyOnlyRefs do
+      edgeList := edgeList.push (name, r, .exprRefBody)
+      unless visited.contains r do
+        unless parentMap.contains r ||
+            entrySet.contains r do
+          parentMap := parentMap.insert r
+            (name, .exprRefBody)
         queue := queue.push r
 
     -- Constructor → parent inductive
